@@ -15,7 +15,6 @@
 - [生产部署](#生产部署)
 - [常见问题](#常见问题)
 - [架构说明](#架构说明)
-- [License](#license)
 
 ---
 
@@ -202,6 +201,15 @@ smartclaw start
 smartclaw start --reload
 ```
 
+### 快速配置TOML（单机生产）
+
+```bash
+cp setup.sh.example setup.sh
+vi setup.sh                    # 编辑配置参数
+sudo bash setup.sh             # 写入 /opt/smartclaw/config/config.toml
+source ~/.bashrc
+```
+
 ### 生产模式
 
 ```bash
@@ -216,15 +224,6 @@ smartclaw start --port 8080 --workers 4
 
 # 后台运行
 nohup smartclaw start --feishu --multi-process > /dev/null 2>&1 &
-```
-
-### 快速配置 TOML（单机生产）
-
-```bash
-cp setup.sh.example setup.sh
-vi setup.sh                    # 编辑配置参数
-sudo bash setup.sh             # 写入 /opt/smartclaw/config/config.toml
-source ~/.bashrc
 ```
 
 ### 验证服务
