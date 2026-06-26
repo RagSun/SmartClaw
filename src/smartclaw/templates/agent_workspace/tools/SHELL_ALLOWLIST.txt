@@ -1,0 +1,18 @@
+# SmartClaw · workspace Shell 白名单（与全局 [execution].shell_allowlist、agent.json shell_allowlist 合并）
+#
+# 教学 / 排障时的层级（由下往上读执行顺序亦可）：
+#   ① Tool Policy（代码 exec_policy）：危险命令 DENY；docker 等 Elevated DENY；其它 ASK 仅告警。
+#   ② 本文件 + agent.json + config：合并后
+#        · 为空 → 本层不限制命令形状；
+#        · 非空 → 至少命中一条规则。
+#
+# 规则语法（每条一行，# 为注释）：
+#   · 普通串：整行以前缀匹配，或「命令首词」精确相等。
+#   · fnmatch：含 * ? [ 时，对「整行命令」或「首词」匹配其一即可。例：python*、npm*
+#   · 单独 * 或 **：本层全放行（仍需 ① + 飞书角色 + agent tools；适合课堂不想穷举 CLI）
+#
+# python
+# pip
+# streamlit
+# streamlit run
+# pytest

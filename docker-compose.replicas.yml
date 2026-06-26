@@ -1,0 +1,82 @@
+# SmartClaw 多副本本地验证编排（见 progress.md §12.3）
+#
+# 目的：在本机 Docker 真实起「多个 SmartClaw 副本」，证明控制面「共享真相」——
+#       同一份 Redis 下，A 副本开通/停用的租户，B 副本即时可见。
+#       这是「未来部署到任意服务器（多实例水平扩容）」的最小可信验证。
+#
+# 拓扑：1×redis（共享治理面） + 2×smartclaw 副本（app1:8001 / app2:8002，仅 HTTP）
+#       + 1×nginx LB（8080 轮询）。两副本共享同一 Redis 与同一 ADMIN_TOKEN。
+#
+# 用法（PowerShell）：
+#   $env:SMARTCLAW_ADMIN_TOKEN = "demo-admin-token-2026"
+#   docker compose -f docker-compose.replicas.yml up -d --build
+#   python scripts/verify_multi_replica.py
+#   docker compose -f docker-compose.replicas.yml down -v
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: fc-mr-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+      start_period: 2s
+
+  app1: &app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: smartclaw:mr
+    container_name: fc-mr-app1
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      # —— 控制面后端：硬性 Redis、无回退（连不上 fail-fast）——
+      SMARTCLAW_GOVERNANCE_ENABLED: "true"
+      SMARTCLAW_GOVERNANCE_STORE: "redis"
+      SMARTCLAW_GOVERNANCE_REDIS_URL: "redis://redis:6379/0"
+      # —— 两副本共享同一管理面凭证；store=redis 时租户注册表自动共享同一 Redis ——
+      SMARTCLAW_ADMIN_TOKEN: "${SMARTCLAW_ADMIN_TOKEN:?请先设置 SMARTCLAW_ADMIN_TOKEN（多副本共享同一凭证）}"
+      SMARTCLAW_REPLICA_ID: "app1"
+    # 仅起 HTTP API（多副本验证不需要飞书长连接）
+    command: ["smartclaw", "start", "--no-feishu", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8001:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/monitoring/health"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 15s
+
+  app2:
+    <<: *app
+    container_name: fc-mr-app2
+    environment:
+      SMARTCLAW_GOVERNANCE_ENABLED: "true"
+      SMARTCLAW_GOVERNANCE_STORE: "redis"
+      SMARTCLAW_GOVERNANCE_REDIS_URL: "redis://redis:6379/0"
+      SMARTCLAW_ADMIN_TOKEN: "${SMARTCLAW_ADMIN_TOKEN:?请先设置 SMARTCLAW_ADMIN_TOKEN（多副本共享同一凭证）}"
+      SMARTCLAW_REPLICA_ID: "app2"
+    ports:
+      - "8002:8000"
+
+  lb:
+    image: nginx:1.27-alpine
+    container_name: fc-mr-lb
+    restart: unless-stopped
+    depends_on:
+      app1:
+        condition: service_healthy
+      app2:
+        condition: service_healthy
+    volumes:
+      - ./deploy/nginx/replicas.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8080:8080"

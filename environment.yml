@@ -1,0 +1,16 @@
+name: smartclaw
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.12
+  - uv
+  - pip:
+    - -e .
+    - pytest>=7.0
+    - pytest-asyncio>=0.21
+    - pytest-cov>=4.0
+    - ruff>=0.1
+    - black>=23.0
+    - mypy>=1.0
+    - watchdog>=3.0

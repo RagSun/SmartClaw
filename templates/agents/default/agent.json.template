@@ -1,0 +1,19 @@
+{
+  "name": "default",
+  "description": "默认 Agent；未填写 llm 时沿用 config.toml [llm]",
+  "display_name": "smartclaw",
+  "channel": "feishu",
+  "enabled": true,
+  "feishu": {
+    "app_id": "",
+    "app_secret": ""
+  },
+  "llm": {},
+  "sandbox": {
+    "enabled": true,
+    "memory_mb": 128,
+    "cpu_count": 1
+  },
+  "shell_allowlist": [],
+  "shell_allowlist_include_workspace_file": true
+}

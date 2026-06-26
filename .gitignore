@@ -1,0 +1,65 @@
+# === 敏感信息（切勿上传）===
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# === 虚拟环境 / 依赖缓存 ===
+.venv/
+venv/
+env/
+ENV/
+
+# === 测试 / 类型 / 覆盖率缓存 ===
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# === 运行时数据 / 日志 ===
+.freshclaw/
+.smartclaw/
+data/
+logs/
+*.log
+
+# === IDE / 编辑器 / 系统 ===
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+*.bak
+
+# === 本地配置覆盖 ===
+config/config.local.toml
+
+# === 本地安装/部署脚本（含本机路径，保留 .example 模板）===
+setup.sh

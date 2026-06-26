@@ -1,0 +1,189 @@
+#!/bin/bash
+#============================================
+# SmartClaw 一键配置脚本（非交互式，无 CLI 依赖）
+#============================================
+# 使用方法:
+#   1. 修改下方配置参数
+#   2. 执行: sudo bash setup.sh
+#   3. 完成后: source ~/.bashrc 使 PATH 生效
+#============================================
+
+#========= LLM 配置 =========
+LLM_API_KEY=""
+LLM_MODEL="deepseek-v4-flash"
+LLM_BASE_URL="https://api.deepseek.com/v1"
+
+#========= Vision 配置 =========
+VISION_ENABLED="true"
+VISION_API_KEY=""
+VISION_MODEL="qwen3.7-plus"
+VISION_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
+
+#========= 飞书配置 =========
+FEISHU_APP_ID=""
+FEISHU_APP_SECRET=""
+
+#============================================
+# 以下内容不需要修改
+#============================================
+
+set -e
+
+CONFIG_PATH="/opt/smartclaw/config/config.toml"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+VENV_BIN="$SCRIPT_DIR/.venv/bin"
+
+echo "=== SmartClaw 配置脚本 ==="
+
+# ── 将项目 .venv/bin 加入 PATH ──
+if [ -d "$VENV_BIN" ]; then
+    export PATH="$VENV_BIN:$PATH"
+    echo "  ✓ 已添加 $VENV_BIN 到 PATH"
+else
+    echo "  ⚠ 未找到 .venv/bin，请先在项目目录运行: uv venv && uv pip install -e ."
+fi
+
+# ── 检查 root ──
+if [ "$EUID" -ne 0 ]; then
+    echo "请使用 root 权限运行: sudo bash setup.sh"
+    exit 1
+fi
+
+# ── 辅助函数：按 section 精确替换 TOML 值 ──
+set_toml_value() {
+    local section="$1"   # e.g. "llm" or "channels.feishu"
+    local key="$2"       # e.g. "api_key"
+    local value="$3"     # new value
+    local file="$4"
+
+    if grep -q "^${key} = " "$file" 2>/dev/null; then
+        # 按 section 限定范围替换
+        sed -i "/^\[${section}\]/,/^\[/ s|^${key} = .*|${key} = \"${value}\"|" "$file"
+    else
+        # key 不存在则在 section header 下追加
+        sed -i "/^\[${section}\]/a ${key} = \"${value}\"" "$file"
+    fi
+}
+
+# ── 1/5 初始化配置文件 ──
+if [ ! -f "$CONFIG_PATH" ]; then
+    echo "[1/5] 初始化配置文件..."
+    mkdir -p "$(dirname "$CONFIG_PATH")"
+    cat > "$CONFIG_PATH" << 'EOF'
+[llm]
+provider = "deepseek"
+model = "deepseek-v4-flash"
+base_url = "https://api.deepseek.com/v1"
+api_key = ""
+max_tokens = 8192
+temperature = 0.7
+
+[vision]
+enabled = false
+model = "qwen3.7-plus"
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+api_key = ""
+timeout = 60
+max_retries = 3
+
+[channels.feishu]
+app_id = ""
+app_secret = ""
+
+[sandbox]
+enabled = true
+memory_mb = 128
+cpu_count = 1
+
+[server]
+host = "0.0.0.0"
+port = 8000
+workers = 4
+
+[smartclaw]
+agent_workspace_base = "/opt/smartclaw/data/workspace"
+
+[logging]
+level = "INFO"
+file = "/opt/smartclaw/logs/smartclaw.log"
+EOF
+    echo "  ✓ 配置文件已创建: $CONFIG_PATH"
+else
+    echo "[1/5] 配置文件已存在，跳过初始化"
+fi
+
+# ── 2/5 配置 LLM ──
+echo "[2/5] 配置 LLM..."
+set_toml_value "llm" "api_key"  "$LLM_API_KEY"  "$CONFIG_PATH"
+set_toml_value "llm" "model"    "$LLM_MODEL"    "$CONFIG_PATH"
+set_toml_value "llm" "base_url" "$LLM_BASE_URL" "$CONFIG_PATH"
+echo "  ✓ LLM 配置完成"
+
+# ── 3/5 配置 Vision ──
+echo "[3/5] 配置 Vision..."
+set_toml_value "vision" "enabled"  "$VISION_ENABLED"  "$CONFIG_PATH"
+set_toml_value "vision" "api_key"  "$VISION_API_KEY"  "$CONFIG_PATH"
+set_toml_value "vision" "model"    "$VISION_MODEL"    "$CONFIG_PATH"
+set_toml_value "vision" "base_url" "$VISION_BASE_URL" "$CONFIG_PATH"
+echo "  ✓ Vision 配置完成"
+
+# ── 4/5 配置飞书 ──
+echo "[4/5] 配置飞书..."
+set_toml_value "channels.feishu" "app_id"     "$FEISHU_APP_ID"     "$CONFIG_PATH"
+set_toml_value "channels.feishu" "app_secret" "$FEISHU_APP_SECRET" "$CONFIG_PATH"
+echo "  ✓ 飞书配置完成"
+
+# ── 5/5 显示配置 ──
+echo "[5/5] 当前配置文件内容:"
+echo "----------------------------------------"
+cat "$CONFIG_PATH"
+echo "----------------------------------------"
+
+# ── 将 .venv/bin 和 SMARTCLAW_HOME 写入原始用户的 ~/.bashrc ──
+REAL_USER="${SUDO_USER:-$USER}"
+REAL_HOME="$(eval echo "~$REAL_USER")"
+BASHRC="$REAL_HOME/.bashrc"
+VENV_PATH_LINE="export PATH=\"$VENV_BIN:\$PATH\"  # SmartClaw venv"
+FC_HOME_LINE="export SMARTCLAW_HOME=\"/opt/smartclaw\"  # SmartClaw 运行时根目录"
+FC_WORKSPACE_LINE="export SMARTCLAW_AGENT_WORKSPACE_BASE=\"/opt/smartclaw/data/workspace\"  # Agent 工作区根目录"
+
+# 确保文件末尾有换行（防止 echo >> 与上一行拼接）
+if [ -f "$BASHRC" ]; then
+    if [ -s "$BASHRC" ] && [ "$(tail -c 1 "$BASHRC" | wc -l)" -eq 0 ]; then
+        echo "" >> "$BASHRC"
+    fi
+fi
+
+# 写入 VENV PATH
+if [ -f "$BASHRC" ]; then
+    if ! grep -qF "$VENV_BIN" "$BASHRC" 2>/dev/null; then
+        echo "$VENV_PATH_LINE" >> "$BASHRC"
+        echo "  ✓ 已将 venv PATH 写入 $BASHRC"
+    else
+        echo "  ✓ $BASHRC 中已存在 SmartClaw venv PATH 条目"
+    fi
+else
+    echo "$VENV_PATH_LINE" > "$BASHRC"
+    chown "$REAL_USER":"$REAL_USER" "$BASHRC" 2>/dev/null || true
+    echo "  ✓ 已创建 $BASHRC 并写入 venv PATH"
+fi
+
+# 写入 SMARTCLAW_HOME（飞书/多进程启动必须此项）
+if ! grep -qF "SMARTCLAW_HOME" "$BASHRC" 2>/dev/null; then
+    echo "$FC_HOME_LINE" >> "$BASHRC"
+    echo "  ✓ 已将 SMARTCLAW_HOME 写入 $BASHRC"
+else
+    echo "  ✓ $BASHRC 中已存在 SMARTCLAW_HOME 条目"
+fi
+
+# 写入 SMARTCLAW_AGENT_WORKSPACE_BASE
+if ! grep -qF "SMARTCLAW_AGENT_WORKSPACE_BASE" "$BASHRC" 2>/dev/null; then
+    echo "$FC_WORKSPACE_LINE" >> "$BASHRC"
+    echo "  ✓ 已将 SMARTCLAW_AGENT_WORKSPACE_BASE 写入 $BASHRC"
+else
+    echo "  ✓ $BASHRC 中已存在 SMARTCLAW_AGENT_WORKSPACE_BASE 条目"
+fi
+
+echo ""
+echo "=== 配置完成 ==="
+echo "使 PATH 生效: source ~/.bashrc"

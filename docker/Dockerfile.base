@@ -1,0 +1,27 @@
+# SmartClaw Docker 基础镜像
+# 用于构建项目专用镜像
+
+FROM python:3.12-slim
+
+# 安装通用工具 + uv（不包含项目特定依赖）
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    wget \
+    vim \
+    htop \
+    tree \
+    less \
+    unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install uv
+
+# 设置环境变量
+ENV PYTHONUNBUFFERED=1
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 设置工作目录
+WORKDIR /root/workspace
+
+# 默认命令（保持容器运行）
+CMD ["sleep", "infinity"]

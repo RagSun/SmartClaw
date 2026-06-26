@@ -1,0 +1,64 @@
+"""
+LLM 集成模块
+
+提供多厂商 LLM 统一接口，支持：
+- 国内：智谱(GLM)、DeepSeek、通义千问(Qwen)
+- 国外：OpenAI、Claude
+- 自定义：vLLM、Ollama
+"""
+
+from smartclaw.llm.base import (
+    LLMAdapter,
+    LLMConfig,
+    LLMProvider,
+    LLMResponse,
+    Message,
+    ToolCall,
+    merge_agent_llm_with_global,
+    normalize_agent_llm_dict,
+    resolved_model_name_from_llm_dict,
+)
+from smartclaw.llm.openai_compatible import OpenAICompatibleAdapter
+from smartclaw.llm.providers import (
+    PROVIDER_ADAPTERS,
+    ClaudeAdapter,
+    DeepSeekAdapter,
+    GLMAdapter,
+    OllamaAdapter,
+    OpenAIAdapter,
+    QwenAdapter,
+    VLLMAdapter,
+    create_adapter,
+    get_adapter_class,
+)
+from smartclaw.llm.registry import LLMRegistry, get_llm_registry
+
+__all__ = [
+    # 基础类
+    "LLMAdapter",
+    "LLMConfig",
+    "LLMProvider",
+    "LLMResponse",
+    "Message",
+    "ToolCall",
+    "merge_agent_llm_with_global",
+    "normalize_agent_llm_dict",
+    "resolved_model_name_from_llm_dict",
+    # 注册表
+    "LLMRegistry",
+    "get_llm_registry",
+    # 兼容适配器
+    "OpenAICompatibleAdapter",
+    # 具体实现
+    "OpenAIAdapter",
+    "ClaudeAdapter",
+    "GLMAdapter",
+    "DeepSeekAdapter",
+    "QwenAdapter",
+    "VLLMAdapter",
+    "OllamaAdapter",
+    # 工厂函数
+    "create_adapter",
+    "get_adapter_class",
+    "PROVIDER_ADAPTERS",
+]
