@@ -8,6 +8,7 @@
 - [配置说明](#配置说明)
 - [启动服务](#启动服务)
 - [命令参考](#命令参考)
+- [多租户配置](#多租户配置)
 - [常见问题](#常见问题)
 - [生产部署](#生产部署)
 
@@ -342,6 +343,10 @@ smartclaw config set channels.feishu.app_secret your_app_secret
 # 设置服务器配置
 smartclaw config set server.host 0.0.0.0
 smartclaw config set server.port 8000
+
+# 设置 Auth / 多租户配置（飞书 app_id → 租户映射）
+# 当不同飞书应用属于不同部门时，用这个映射把消息路由到正确租户
+smartclaw config set auth.tenant_by_app_id.cli_aab8c8caebb9dbc1 default
 ```
 
 ### Agent 管理命令
@@ -506,6 +511,20 @@ smartclaw config show | grep wecom
 # 确保应用已启用且权限配置正确
 ```
 
+**Q: 多个飞书应用（多部门/多租户）如何隔离？**
+
+答案参见下一节 → [多租户配置](#多租户配置)。
+
+SmartClaw 通过 `auth.tenant_by_app_id` 映射表将不同飞书应用的 `app_id` 路由到不同租户，由此在同一个 SmartClaw 实例内实现多部门隔离、独立 Agent 空间、独立配额。
+
+```bash
+# 把飞书应用 cli_xxx 消息路由到 tenant_A
+smartclaw config set auth.tenant_by_app_id.cli_xxx tenant_A
+
+# 把飞书应用 cli_yyy 消息路由到 tenant_B
+smartclaw config set auth.tenant_by_app_id.cli_yyy tenant_B
+```
+
 ### 5. 性能问题
 
 **Q: 响应速度慢？**
@@ -541,6 +560,65 @@ tail -f /opt/smartclaw/logs/smartclaw.log
 # 或查看系统日志
 journalctl -u smartclaw -f
 ```
+
+---
+
+## 🏢 多租户配置
+
+SmartClaw 支持在**同一个实例**内为不同部门/团队提供隔离的 Agent 空间，核心机制是 `auth.tenant_by_app_id`。
+
+### 概念
+
+```
+飞书应用 A (cli_aaa)  ──→  tenant_A  ──→  Agent tenant_A/bot_dept_a
+飞书应用 B (cli_bbb)  ──→  tenant_B  ──→  Agent tenant_B/bot_dept_b
+```
+
+系统收到飞书消息时，从消息中提取 `app_id`，通过 `auth.tenant_by_app_id` 查表得到 `tenant_id`，然后将消息路由到该租户下的 Agent。
+
+### 配置方法
+
+```bash
+# 为每个飞书应用指定租户
+smartclaw config set auth.tenant_by_app_id.cli_aaa tenant_A
+smartclaw config set auth.tenant_by_app_id.cli_bbb tenant_B
+```
+
+这会在 `config.toml` 中生成：
+
+```toml
+[auth.tenant_by_app_id]
+cli_aaa = "tenant_A"
+cli_bbb = "tenant_B"
+```
+
+### 创建租户 Agent
+
+```bash
+# 为 tenant_A 创建 Agent（租户通过 tenant_by_app_id 自动关联）
+smartclaw agent add bot_dept_a --channel feishu -i cli_aaa -s <secret>
+
+# 为 tenant_B 创建 Agent
+smartclaw agent add bot_dept_b --channel feishu -i cli_bbb -s <secret>
+```
+
+### 验证
+
+```bash
+# 查看所有 Agent（含租户信息）
+smartclaw config show | grep -A 10 '"agents"'
+
+# 或
+smartclaw agent list -v
+```
+
+### 相关配置项
+
+| 配置键 | 说明 | 默认值 |
+|--------|------|--------|
+| `auth.tenant_by_app_id` | 飞书 app_id → tenant_id 映射字典 | `{}` |
+| `auth.tenant_default` | 未匹配到映射时的默认租户 | `"default"` |
+| `auth.tenant_trust_header` | 是否校验 `X-SmartClaw-Tenant-Id` 请求头 | `false` |
 
 ---
 

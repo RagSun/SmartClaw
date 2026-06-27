@@ -281,6 +281,25 @@ tail -f /opt/smartclaw/logs/smartclaw.log
 | `smartclaw channel setup feishu` | 配置飞书 | `smartclaw channel setup feishu` |
 | `smartclaw channel setup wecom` | 配置企业微信 | `smartclaw channel setup wecom` |
 
+### Auth / 租户管理命令
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `smartclaw auth whoami <open_id>` | 查看用户角色 | `smartclaw auth whoami ou_xxx --tenant default` |
+| `smartclaw auth users recent` | 最近活跃用户 | `smartclaw auth users recent -n 10` |
+| `smartclaw auth roles set` | 设置用户角色 | `smartclaw auth roles set ou_xxx --roles admin` |
+| `smartclaw auth roles list` | 列出角色映射 | `smartclaw auth roles list --tenant default` |
+| `smartclaw auth tool require` | 设置工具角色要求 | `smartclaw auth tool require agent_create --roles admin` |
+| `smartclaw auth tool list` | 列出工具角色要求 | `smartclaw auth tool list` |
+
+**多租户配置**（飞书 app_id → tenant_id 映射）：
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `smartclaw config set auth.tenant_by_app_id.<app_id>` | 设置飞书应用到租户的映射 | `smartclaw config set auth.tenant_by_app_id.cli_xxx tenant_A` |
+
+> 收到飞书消息时，系统根据消息中的 `app_id` 查找 `auth.tenant_by_app_id`，将消息路由到对应租户的 Agent。
+
 ### Docker 管理命令
 
 | 命令 | 说明 | 示例 |
