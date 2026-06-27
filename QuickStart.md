@@ -346,7 +346,7 @@ smartclaw config set server.port 8000
 
 # 设置 Auth / 多租户配置（飞书 app_id → 租户映射）
 # 当不同飞书应用属于不同部门时，用这个映射把消息路由到正确租户
-smartclaw config set auth.tenant_by_app_id.cli_aab8c8caebb9dbc1 default
+smartclaw config set auth.tenant_by_app_id.cli_xxx default
 ```
 
 ### Agent 管理命令
