@@ -89,7 +89,6 @@ def default_docker_workspace_parent() -> Path:
 # --- 配置 ---
 CONFIG_DIR = INSTALL_ROOT / "config"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
-USER_CONFIG_FILE = USER_HOME / "config.toml"
 
 # --- Agent ---
 AGENTS_DIR = INSTALL_ROOT / "data" / "agents"
@@ -118,12 +117,6 @@ SESSION_DIR = _get_session_dir()
 TEMP_DIR = _get_temp_dir()
 
 
-def get_config_paths() -> list[Path]:
-    """获取配置文件搜索路径（按优先级排序）"""
-    return [
-        CONFIG_FILE,           # 安装目录（优先）
-        USER_CONFIG_FILE,      # 用户目录
-    ]
 
 
 def get_agents_dirs() -> list[Path]:
@@ -196,15 +189,13 @@ def get_config_search_paths() -> list[Path]:
 
     1. /opt/smartclaw/config/config.toml（系统安装）
     2. ~/.smartclaw/config/config.toml（用户安装，``config set`` 默认写入）
-    3. ~/.smartclaw/config.toml（兼容旧版扁平路径）
-    4. 项目源码 config/config.toml（开发态，仅当在仓库内安装时存在）
-    5. 当前工作目录 config.toml
+    3. 项目源码 config/config.toml（开发态，仅当在仓库内安装时存在）
+    4. 当前工作目录 config.toml
     """
     repo_config = Path(__file__).resolve().parent.parent.parent / "config" / "config.toml"
     return [
         CONFIG_FILE,
         USER_HOME / "config" / "config.toml",
-        USER_HOME / "config.toml",
         repo_config,
         Path.cwd() / "config.toml",
     ]

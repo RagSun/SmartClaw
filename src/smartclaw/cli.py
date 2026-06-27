@@ -4566,14 +4566,6 @@ def skills_check(
     console.print(table)
 
 
-@skills_app.command("status")
-def skills_status(
-    json_output: bool = typer.Option(False, "--json", help="JSON 输出"),
-) -> None:
-    """skills status（check 别名）"""
-    skills_check(json_output=json_output)
-
-
 @skills_app.command("info")
 def skills_info(
     name: str = typer.Argument(..., help="Skill 名称"),
@@ -4807,15 +4799,6 @@ def skills_repair(
     else:
         error(f"修复失败: {result}")
         raise typer.Exit(1)
-
-
-@skills_app.command("reinstall")
-def skills_reinstall(
-    name: str = typer.Argument(..., help="Skill 名称或 skill_key"),
-    force: bool = typer.Option(False, "--force", help="忽略审批/critical 阻断"),
-) -> None:
-    """重装 skill（repair 别名）"""
-    skills_repair(name=name, force=force)
 
 
 @skills_app.command("snapshot")
@@ -5265,23 +5248,6 @@ def monitoring_clear_old(
 # ==================== 长连接服务命令 ====================
 
 
-@app.command("start-ws")
-def start_ws_command() -> None:
-    """
-    启动飞书 WebSocket 长连接服务
-
-    无需配置 Webhook URL，使用飞书官方 SDK 建立长连接。
-    """
-    import asyncio
-
-    from smartclaw.feishu_ws_server import main
-
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        info("服务已停止")
-
-
 # ==================== Agent 绑定命令 ====================
 
 bindings_app = typer.Typer(help="Agent 绑定管理")
@@ -5417,15 +5383,6 @@ def _session_agent_dir(agent: str, tenant: str = "") -> Path:
     return default_session_data_dir(agent_name, tenant_id)
 
 
-@app.command("session", hidden=True)
-def session_command() -> None:
-    """会话管理命令组"""
-    info("使用以下子命令：")
-    info("  smartclaw session list          - 列出所有会话")
-    info("  smartclaw session clear <id>    - 清除指定会话")
-    info("  smartclaw session clear-all     - 清除所有会话")
-
-
 @app.command("session-list", hidden=True)
 def session_list(
     tenant: str = typer.Option("", "--tenant", help="租户 ID；不传则列出全部"),
@@ -5478,24 +5435,6 @@ def session_list(
         return
 
     console.print(table)
-
-
-@app.command("session-clear", hidden=True)
-def session_clear(
-    agent: str = typer.Option(..., "--agent", "-a", help="Agent 名称"),
-    tenant: str = typer.Option("", "--tenant", help="租户 ID；也可用 tenant/agent"),
-) -> None:
-    """清除指定 Agent 的所有会话"""
-    import shutil
-
-    sessions_dir = _session_agent_dir(agent, tenant)
-    tenant_id, agent_name = _split_tenant_agent_ref(agent, tenant)
-
-    if sessions_dir.exists():
-        shutil.rmtree(sessions_dir)
-        success(f"已清除 Agent {tenant_id}/{agent_name} 的所有会话")
-    else:
-        info(f"Agent {tenant_id}/{agent_name} 暂无会话记录")
 
 
 @app.command("session-clear-all", hidden=True)
@@ -6216,16 +6155,16 @@ def docker_stats_command():
     显示 Docker 容器统计信息
     """
     from smartclaw.core.dockerimpl import get_container_pool
-    
+
     pool = get_container_pool()
     stats = pool.get_stats()
-    
+
     info("Docker 容器统计")
     console.print(f"  总容器数: {stats['total']}")
     console.print(f"  最大容量: {stats['max']}")
     console.print(f"  空闲超时: {stats['idle_timeout_seconds']}s")
     console.print("")
-    
+
     by_status = stats.get("by_status", {})
     if by_status:
         console.print("[bold]按状态统计:[/bold]")
@@ -6233,79 +6172,5 @@ def docker_stats_command():
             console.print(f"  {status}: {count}")
 
 
-@docker_app.command("cleanup")
-def docker_cleanup_command(
-    force: bool = typer.Option(False, "--force", "-f", help="强制清理所有容器"),
-):
-    """
-    清理空闲容器
-    """
-    from smartclaw.core.dockerimpl import get_container_pool
-    
-    pool = get_container_pool()
-    stats = pool.get_stats()
-    
-    containers = stats.get("containers", {})
-    idle_containers = [
-        name for name, info in containers.items()
-        if info.get("status") in ("IDLE", "STOPPED")
-    ]
-    
-    if not idle_containers:
-        success("没有需要清理的容器")
-        return
-    
-    info(f"发现 {len(idle_containers)} 个空闲容器:")
-    for name in idle_containers:
-        console.print(f"  - {name}")
-    
-    if not force:
-        warning("使用 --force 确认清理")
-        return
-    
-    success(f"已清理 {len(idle_containers)} 个容器")
-
-
-@docker_app.command("logs")
-def docker_logs_command(
-    project: str = typer.Argument(..., help="项目名称"),
-    lines: int = typer.Option(50, "--lines", "-n", help="日志行数"),
-):
-    """
-    查看容器日志
-    """
-    from smartclaw.core.dockerimpl import get_container_pool
-    
-    pool = get_container_pool()
-    
-    try:
-        container_info = pool.get_container(project)
-        console.print(f"[dim]日志功能开发中...[/dim]")
-    except Exception as e:
-        error(f"获取容器失败: {e}")
-
-
-@docker_app.command("inspect")
-def docker_inspect_command(
-    project: str = typer.Argument(..., help="项目名称"),
-):
-    """
-    查看容器详细信息
-    """
-    from smartclaw.core.dockerimpl import get_container_pool
-    import json
-    
-    pool = get_container_pool()
-    
-    try:
-        container_info = pool.get_container(project)
-        console.print(f"[bold]项目:[/bold] {project}")
-        console.print(f"[bold]容器 ID:[/bold] {container_info.get('container_id', 'N/A')}")
-        console.print(f"[bold]状态:[/bold] {container_info.get('status', 'N/A')}")
-        console.print(f"[bold]镜像:[/bold] {container_info.get('image', 'N/A')}")
-        console.print(f"[bold]端口映射:[/bold] {container_info.get('host_ports', 'N/A')}")
-        console.print(f"[bold]创建时间:[/bold] {container_info.get('created_at', 'N/A')}")
-    except Exception as e:
-        error(f"获取容器信息失败: {e}")
 if __name__ == "__main__":
     app()

@@ -17,8 +17,6 @@ warm_pool_size = 5
 max_instances = 100
 memory_mb = 128
 cpu_count = 1
-# Docker 沙箱容器内工作区挂载点（bind mount 目标与 -w 工作目录）。
-# 中性路径 /workspace，root 与非 root(1000:1000) 用户均兼容；可用 SANDBOX_CONTAINER_WORKSPACE 覆盖。
 container_workspace = "/workspace"
 
 [channels.feishu]
@@ -64,6 +62,8 @@ endpoint = ""
 [auth]
 admin_require_auth = true
 admin_bearer_token = ""
+
+[auth.tenant_by_app_id]
 
 [memory]
 store = "sqlite"
