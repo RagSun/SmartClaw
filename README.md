@@ -286,8 +286,10 @@ tail -f /opt/smartclaw/logs/smartclaw.log
 | 命令 | 说明 | 示例 |
 |------|------|------|
 | `smartclaw docker list` | 列出容器 | `smartclaw docker list` |
-| `smartclaw docker stop <id>` | 停止容器 | `smartclaw docker stop <container_id>` |
-| `smartclaw docker clean` | 清理容器 | `smartclaw docker clean --all` |
+| `smartclaw docker stats` | 容器统计 | `smartclaw docker stats` |
+| `smartclaw docker inspect` | 容器详情 | `smartclaw docker inspect <project_name>` |
+| `smartclaw docker logs` | 容器日志 | `smartclaw docker logs <project_name> -n 50` |
+| `smartclaw docker cleanup` | 清理空闲容器 | `smartclaw docker cleanup --force` |
 
 ### 监控统计命令
 
