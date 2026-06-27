@@ -293,55 +293,9 @@ agent/runner.py (AgentRunner)
 
 ---
 
-## 五、弃用/未使用的功能模块
+## 五、关键内部数据流详解
 
-### 5.1 确认已弃用的兼容垫片（已有 DeprecationWarning）
-
-| 模块路径 | 说明 | 实际代码位置 |
-|---------|------|------------|
-| `tool/` (3 个文件, ~20 行) | 兼容别名，全部 re-export 自 `tool_packages/` | `tool_packages/` |
-| `tools/policy/` (2 个文件, ~20 行) | 兼容别名，全部 re-export 自 `exec_policy/` | `exec_policy/` |
-
-### 5.2 确认无效/未使用的模块（零引用）
-
-| 模块路径 | 行数 | 说明 |
-|---------|------|------|
-| **`agent/firecracker_backend.py`** | 151 | `FirecrackerSandboxBackend` 类。实现了 deepagents 协议，但从未被任何文件 import。功能已被 `sandbox/firecracker.py` 中的 `FirecrackerBackend` 取代。 |
-| **`agent/base_backend.py`** | ~40 | `BaseBackend` ABC + `ExecuteResponse`/`ServiceInfo` 数据类。旧版后端接口，未使用。被 `sandbox/base.py` 中的 `SandboxBackend` Protocol 取代。 |
-| **`agent/docker_backend.py`** | ~250 | `DockerBackend(BaseBackend)`。旧版 Docker 后端实现，未使用。被 `sandbox/docker.py` (DockerSandboxBackend) 取代。 |
-| **`core/integration_example.py`** | 260 | 示例/测试代码，从未被任何文件 import。典型开发残留。 |
-| **`sandbox/docker_secure.py`** | 279 | `SandboxConfig` / `SandboxDockerConfig` / `DEFAULT_SANDBOX_CONFIG`。安全沙箱配置，从未被任何外部文件 import。 |
-| **`sandbox/secure_executor.py`** | 314 | `SecureSandboxExecutor` 类。仅内部 import 了 `docker_secure.py`，但自身从不被外部 import。 |
-| **`sandbox/vsock_agent.py`** | 15 | microVM 内 vsock agent 入口脚本。仅被自身 `__main__` 调用，未被项目代码 import。 |
-| **`sandbox/vsock/`** (3 文件) | 589 | `VsockServer`/`VsockClient`/`VsockManager`。VSOCK 通信协议实现。`firecracker.py:558` 有 vsock 相关日志，但无实际 import。从未接入执行通路。 |
-
-### 5.3 弃用模块总结
-
-```
-总计弃用代码行数: ~1,918 行
-
-目录分布:
-  agent/firecracker_backend.py ........ 151 行  (死代码)
-  agent/base_backend.py ................ ~40 行  (死代码)
-  agent/docker_backend.py .............. ~250 行 (死代码)
-  core/integration_example.py .......... 260 行  (死代码)
-  sandbox/docker_secure.py ............ 279 行  (死代码)
-  sandbox/secure_executor.py .......... 314 行  (死代码)
-  sandbox/vsock_agent.py .............. 15 行   (死代码)
-  sandbox/vsock/server.py ............. 270 行  (死代码)
-  sandbox/vsock/client.py ............. 219 行  (死代码)
-  sandbox/vsock/manager.py ............ 100 行  (死代码)
-  tool/ (3 files) ..................... ~15 行  (已弃用垫片)
-  tools/policy/ (2 files) ............. ~5 行   (已弃用垫片)
-
-总计: 12 个文件/模块，~1,918 行冗余代码
-```
-
----
-
-## 六、关键内部数据流详解
-
-### 6.1 消息生命周期
+### 5.1 消息生命周期
 
 ```
 外部消息 (JSON)
@@ -383,7 +337,7 @@ UnifiedExecutionEngine.execute_turn(session)
 外部用户收到回复
 ```
 
-### 6.2 配置加载链
+### 5.2 配置加载链
 
 ```
 config.toml (优先级从高到低):
@@ -410,7 +364,7 @@ config.toml (优先级从高到低):
   get_config() → 全局单例 (pydantic 模型)
 ```
 
-### 6.3 Agent 配置与运行时
+### 5.3 Agent 配置与运行时
 
 ```
 Agent 目录布局:
@@ -456,7 +410,7 @@ AgentRunner 启动流程:
   13. AgentStatus → RUNNING
 ```
 
-### 6.4 工具执行安全门禁
+### 5.4 工具执行安全门禁
 
 ```
 ToolRegistry.execute(tool_name, parameters)
@@ -490,7 +444,7 @@ ToolRegistry.execute(tool_name, parameters)
 
 ---
 
-## 七、模块职责矩阵
+## 六、模块职责矩阵
 
 | 模块 | 职责 | 关键类/函数 |
 |------|------|-----------|
@@ -533,30 +487,9 @@ ToolRegistry.execute(tool_name, parameters)
 
 ---
 
-## 八、两个被保留的死亡模块 (需特别说明)
-
-`tool/` 和 `tools/policy/` 两个包已经明确被标记为兼容垫片:
-- `tool/` → 所有内容 re-export 自 `tool_packages/`，`import warnings` + `DeprecationWarning`
-- `tools/policy/` → 所有内容 re-export 自 `exec_policy/`，`import warnings` + `DeprecationWarning`
-
-这两个模块**确认为弃用但有意保留**（平滑迁移窗口）。其余 8 个未使用模块（~1,878 行）是真正的死代码。
-
----
-
-## 九、总结
+## 七、总结
 
 SmartClaw 的业务处理流程遵循: **渠道接入 → 鉴权准入 → Agent 路由 → 会话管理 → 记忆注入 → 多引擎级联执行 (DeepAgents → ReAct → LLM+工具) → 沙箱隔离 → 记忆维护 → 渠道回复**。
 
 数据以 **config.toml (全局) + agent.json (Agent级)** 两层配置为依托，**SessionManager (JSONL)** 和 **MemoryManager (SQLite/PostgreSQL)** 为持久化主干，**ToolRegistry** 为工具编排中心，**TenantGovernor** 为多租户资源控制面。
 
-发现 **8 个弃用/无效模块**（共约 1,878 行死代码），另有 **2 个已标记 DeprecationWarning 的兼容垫片**（有意保留）。
-
-建议在后续版本中移除这 8 个死代码模块以减轻维护负担：
-- `agent/firecracker_backend.py`
-- `agent/base_backend.py`
-- `agent/docker_backend.py`
-- `core/integration_example.py`
-- `sandbox/docker_secure.py`
-- `sandbox/secure_executor.py`
-- `sandbox/vsock_agent.py`
-- `sandbox/vsock/` (整个目录)

@@ -24,7 +24,7 @@ from smartclaw.agent.react import ExecutionResult, ReActEngine
 from smartclaw.agent.deepagents_wrapper import DeepAgentsWrapper
 from smartclaw.agent.control_flow import preflight_capabilities
 from smartclaw.agent.history_deepagents import clip_history_for_deepagents
-from smartclaw.agent.planner_executor import Planner, SimpleExecutor
+from smartclaw.agent.planner import Planner
 from smartclaw.agent.session import Session, SessionManager
 from smartclaw.agent.unified_execution import UnifiedExecutionEngine
 from smartclaw.agent.tools import ToolRegistry, get_tool_registry
@@ -150,7 +150,7 @@ class AgentRunner:
         self._react_engine: Optional[ReActEngine] = None
         self._planner: Optional[Planner] = None
         self._deep_agent: Optional[DeepAgentsWrapper] = None
-        self._executor: Optional[SimpleExecutor] = None
+        self._executor: Optional[Any] = None
 
         # 上下文模式: "full"=完整历史, "compact"=摘要历史, "minimal"=仅当前
         # 强制使用 full 模式启用记忆
