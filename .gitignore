@@ -63,3 +63,7 @@ config/config.local.toml
 
 # === 本地安装/部署脚本（含本机路径，保留 .example 模板）===
 setup.sh
+
+# === 项目文档 / 规范（本地生成）===
+ARCHITECTURE_REPORT.md
+standards/

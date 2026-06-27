@@ -69,7 +69,13 @@ set_toml_value() {
 if [ ! -f "$CONFIG_PATH" ]; then
     echo "[1/5] 初始化配置文件..."
     mkdir -p "$(dirname "$CONFIG_PATH")"
-    cat > "$CONFIG_PATH" << 'EOF'
+    if command -v smartclaw >/dev/null 2>&1; then
+        # 优先用 smartclaw init 脚手架（config.toml + agents + workspace）
+        smartclaw init --path /opt/smartclaw/
+        echo "  ✓ 已通过 smartclaw init 初始化: /opt/smartclaw"
+    else
+        # 无 smartclaw CLI 时回退到内置最小模板
+        cat > "$CONFIG_PATH" << 'EOF'
 [llm]
 provider = "deepseek"
 model = "deepseek-v4-flash"
@@ -107,7 +113,8 @@ agent_workspace_base = "/opt/smartclaw/workspace"
 level = "INFO"
 file = "/opt/smartclaw/logs/smartclaw.log"
 EOF
-    echo "  ✓ 配置文件已创建: $CONFIG_PATH"
+        echo "  ✓ 配置文件已创建（内置模板）: $CONFIG_PATH"
+    fi
 else
     echo "[1/5] 配置文件已存在，跳过初始化"
 fi

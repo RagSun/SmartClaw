@@ -13,7 +13,6 @@ FILES=(
     "src/smartclaw/core/event_bus.py"
     "src/smartclaw/core/subagent_registry.py"
     "src/smartclaw/core/subagent_spawn.py"
-    "src/smartclaw/core/integration_example.py"
 )
 
 for file in "${FILES[@]}"; do
@@ -42,20 +41,12 @@ for file in "${TEST_FILES[@]}"; do
     fi
 done
 
-# 3. 检查文档
-if [ -f "docs/EVENT_BUS_SUBAGENT.md" ]; then
-    echo "  ✓ 文档已创建"
-else
-    echo "  ✗ 文档缺失！"
-    exit 1
-fi
-
-# 4. 运行单元测试
+# 3. 运行单元测试
 echo ""
 echo "🧪 运行单元测试..."
 python -m pytest tests/core/ -v
 
-# 5. 检查依赖
+# 4. 检查依赖
 echo ""
 echo "📦 检查依赖..."
 uv pip install aiofiles pydantic pytest pytest-asyncio
@@ -64,7 +55,6 @@ echo ""
 echo "✅ 部署完成！"
 echo ""
 echo "📖 快速开始："
-echo "  1. 查看文档: cat docs/EVENT_BUS_SUBAGENT.md"
-echo "  2. 运行示例: python -m smartclaw.core.integration_example"
-echo "  3. 查看测试: pytest tests/core/ -v"
+echo "  1. 运行示例: python -m smartclaw.core.integration_example"
+echo "  2. 查看测试: pytest tests/core/ -v"
 echo ""

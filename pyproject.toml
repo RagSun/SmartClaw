@@ -7,22 +7,16 @@ name = "smartclaw"
 version = "1.0.0"
 description = "SmartClaw - 生产级企业 AI Agent 平台"
 readme = "README.md"
-license = "MIT"
-# deepagents 执行内核要求 Python>=3.12；与 Dockerfile（python:3.12-slim）保持一致。
 requires-python = ">=3.12"
-authors = [
-    { name = "SmartClaw Team", email = "smartclaw@example.com" }
-]
+
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
 ]
 # 设计：`uv pip install -e .` 即得到「可真正 smartclaw start」的完整后端闭包——
 # 含 Web/CLI 框架 + Agent 执行内核（deepagents/LangChain/LangGraph）+ 飞书渠道 + 运行时基础设施。
-# 版本与已验证环境一致（见 requirements-runtime.txt，作为容器层的等价镜像）。
 # 唯一可选的是 PostgreSQL 多副本数据面后端（[postgres] extra），sqlite 默认零额外依赖。
 dependencies = [
     # —— Web / CLI 框架 ——
@@ -82,11 +76,6 @@ postgres = [
 
 [project.scripts]
 smartclaw = "smartclaw.cli:app"
-
-[project.urls]
-Homepage = "https://github.com/DaTingLi/smartclaw"
-Repository = "https://github.com/DaTingLi/smartclaw"
-Documentation = "https://github.com/DaTingLi/smartclaw#readme"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/smartclaw"]
