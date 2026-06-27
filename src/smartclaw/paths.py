@@ -72,6 +72,20 @@ INSTALL_ROOT = _get_install_root()
 # 用户配置根目录
 USER_HOME = _get_user_home()
 
+
+def default_docker_workspace_parent() -> Path:
+    """
+    宿主机上 Docker 工作区的默认父目录（用户可写）。
+
+    非 root 用户无法写入 ``/root/smartclaw_workspace``，故默认落到当前用户家目录下。
+    可通过环境变量 ``SMARTCLAW_DOCKER_WORKSPACE_PARENT`` 覆盖。
+    供 sandbox/docker.py 与 core/dockerimpl 共用，避免宿主侧工作区路径硬编码。
+    """
+    raw = (os.environ.get("SMARTCLAW_DOCKER_WORKSPACE_PARENT") or "").strip()
+    if raw:
+        return Path(os.path.expanduser(raw)).expanduser().resolve()
+    return (Path.home() / ".smartclaw" / "docker_workspace").resolve()
+
 # --- 配置 ---
 CONFIG_DIR = INSTALL_ROOT / "config"
 CONFIG_FILE = CONFIG_DIR / "config.toml"

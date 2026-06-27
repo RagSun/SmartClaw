@@ -1,3 +1,43 @@
+[smartclaw]
+name = "SmartClaw"
+version = "1.0.0"
+environment = "development"
+agent_workspace_base = "/home/luckyu/.smartclaw/workspace"
+
+[server]
+host = "0.0.0.0"
+port = 8000
+workers = 1
+max_request_bytes = 1048576
+
+[sandbox]
+enabled = true
+backend = "docker"
+warm_pool_size = 5
+max_instances = 100
+memory_mb = 128
+cpu_count = 1
+# Docker 沙箱容器内工作区挂载点（bind mount 目标与 -w 工作目录）。
+# 中性路径 /workspace，root 与非 root(1000:1000) 用户均兼容；可用 SANDBOX_CONTAINER_WORKSPACE 覆盖。
+container_workspace = "/workspace"
+
+[channels.feishu]
+enabled = false
+app_id = ""
+app_secret = ""
+
+[channels.wecom]
+enabled = false
+corp_id = ""
+agent_id = ""
+secret = ""
+
+[logging]
+level = "INFO"
+file_enabled = true
+file_path = "logs/smartclaw.log"
+console_enabled = true
+
 [llm]
 provider = "deepseek"
 model = "deepseek-v4-flash"
@@ -5,30 +45,25 @@ base_url = "https://api.deepseek.com/v1"
 api_key = ""
 max_tokens = 8192
 temperature = 0.7
+top_p = 1.0
 
 [vision]
 enabled = false
-model = "qwen3.7-plus"
-base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+model = ""
+base_url = ""
 api_key = ""
 timeout = 60
 max_retries = 3
 
-[channels.feishu]
-app_id = ""
-app_secret = ""
+[langsmith]
+enabled = false
+api_key = ""
+project = ""
+endpoint = ""
 
-[sandbox]
-type = "docker"
-enabled = true
-memory_mb = 128
-cpu_count = 1
+[auth]
+admin_require_auth = true
+admin_bearer_token = ""
 
-[server]
-host = "0.0.0.0"
-port = 8000
-workers = 4
-
-[logging]
-level = "INFO"
-file = "/opt/smartclaw/logs/smartclaw.log"
+[memory]
+store = "sqlite"

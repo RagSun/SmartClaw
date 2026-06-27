@@ -647,7 +647,12 @@ class MultiProcessFeishuService:
         default_feishu = {}
         if hasattr(config, "channels") and hasattr(config.channels, "feishu"):
             feishu = config.channels.feishu
-            if hasattr(feishu, "app_id") and feishu.app_id:
+            # 优先从多账号结构取默认账号（与 loader/server 单进程路径一致）；
+            # 兼容旧版顶层 app_id/app_secret 字段。
+            acc = feishu.get_default_account() if hasattr(feishu, "get_default_account") else None
+            if acc and acc.app_id:
+                default_feishu = {"app_id": acc.app_id, "app_secret": acc.app_secret}
+            elif hasattr(feishu, "app_id") and feishu.app_id:
                 default_feishu = {"app_id": feishu.app_id, "app_secret": feishu.app_secret}
 
         # 解密函数（在循环外定义，只导入一次）

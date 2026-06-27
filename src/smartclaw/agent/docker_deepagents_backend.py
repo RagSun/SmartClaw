@@ -42,8 +42,8 @@ from smartclaw.agent.tools.loop_detector import TOOL_DEEPAGENTS_SHELL, get_loop_
 from smartclaw.console import debug, error, info
 from smartclaw.subprocess_io import SUBPROCESS_TEXT_KWARGS
 
-# 沙箱内工作目录（须与 sandbox/docker.py 中 ``-v …:/root/workspace``、``-w /root/workspace`` 一致）
-SANDBOX_WORKSPACE = "/root/workspace"
+# 沙箱内工作目录兜底默认（实际值取自 docker_backend.container_workspace，须与 sandbox/docker.py 挂载点一致）
+DEFAULT_SANDBOX_WORKSPACE = "/workspace"
 # 历史占位：宿主默认已不再强制使用此路径（参见 DockerSandboxBackend 默认目录）
 HOST_WORKSPACE = "/root/smartclaw_workspace"
 
@@ -68,6 +68,10 @@ class DockerDeepAgentsBackend(LocalShellBackend):
         super().__init__(root_dir=root_dir, env=env, virtual_mode=True, **kwargs)
         self.docker_backend = docker_backend
         self.instance_id = instance_id
+        # 容器内工作区挂载点，须与 sandbox/docker.py 的 -v/-w 一致
+        self.container_workspace = getattr(
+            docker_backend, "container_workspace", DEFAULT_SANDBOX_WORKSPACE
+        )
         self.container_id = None
 
         # 从 instance_id 获取 container_id
@@ -91,26 +95,26 @@ class DockerDeepAgentsBackend(LocalShellBackend):
     def _rewrite_host_workspace_paths_for_container(self, cmd: str) -> str:
         """
         execute 经 docker exec 在容器内运行；宿主绝对路径在容器中不存在。
-        将「当前 Agent 工作区根」的宿主前缀替换为挂载点 ``SANDBOX_WORKSPACE``。
+        将「当前 Agent 工作区根」的宿主前缀替换为挂载点 ``self.container_workspace``。
         """
         if not cmd or not isinstance(cmd, str):
             return cmd
         host_root = self._host_workspace_posix()
         if (
             not host_root
-            or host_root == SANDBOX_WORKSPACE
+            or host_root == self.container_workspace
             or host_root not in cmd
         ):
             return cmd
         # 先替换「根目录/」与引号内路径，再替换末尾或无后缀子路径（如 cd …/ws）
         pat_path = re.escape(host_root) + r"(?=/|'|\")"
-        rewritten = re.sub(pat_path, SANDBOX_WORKSPACE, cmd)
+        rewritten = re.sub(pat_path, self.container_workspace, cmd)
         pat_standalone = re.escape(host_root) + r"(?=$|\s|;|\)|\||&|`)"
-        rewritten = re.sub(pat_standalone, SANDBOX_WORKSPACE, rewritten)
+        rewritten = re.sub(pat_standalone, self.container_workspace, rewritten)
         if rewritten != cmd and is_deepagents_verbose():
             debug(
                 "[DockerDeepAgentsBackend] execute 路径重写: 宿主前缀 "
-                f"{host_root!r} -> {SANDBOX_WORKSPACE!r}"
+                f"{host_root!r} -> {self.container_workspace!r}"
             )
         return rewritten
 
@@ -189,7 +193,7 @@ class DockerDeepAgentsBackend(LocalShellBackend):
             log_rel = f".smartclaw_bg/bg_{uuid.uuid4().hex[:12]}.log"
             exec_command = wrap_command_linux_container(
                 cmd_for_container,
-                workspace_posix=SANDBOX_WORKSPACE,
+                workspace_posix=self.container_workspace,
                 log_relpath=log_rel,
             )
 
@@ -251,7 +255,7 @@ class DockerDeepAgentsBackend(LocalShellBackend):
                         _scm = build_sandbox_smoke_shell(
                             decl,
                             starter_command=command,
-                            workspace_posix=SANDBOX_WORKSPACE,
+                            workspace_posix=self.container_workspace,
                         )
                         if _scm:
                             _sm_ms = min(
@@ -322,7 +326,7 @@ class DockerDeepAgentsBackend(LocalShellBackend):
             log_rel = f".smartclaw_bg/bg_{uuid.uuid4().hex[:12]}.log"
             exec_command = wrap_command_linux_container(
                 cmd_for_container,
-                workspace_posix=SANDBOX_WORKSPACE,
+                workspace_posix=self.container_workspace,
                 log_relpath=log_rel,
             )
 
@@ -364,7 +368,7 @@ class DockerDeepAgentsBackend(LocalShellBackend):
                     _scm = build_sandbox_smoke_shell(
                         decl,
                         starter_command=command,
-                        workspace_posix=SANDBOX_WORKSPACE,
+                        workspace_posix=self.container_workspace,
                     )
                     if _scm:
                         _sm_ms = min(

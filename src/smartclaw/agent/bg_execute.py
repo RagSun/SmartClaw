@@ -27,7 +27,8 @@ from smartclaw.auth.tool_gate import get_tool_security_context
 from smartclaw.debug_session_log import debug_ndjson
 
 # 与 Docker/Firecracker 内工作区常量保持一致（须与 DockerSandboxBackend 挂载目标一致）
-SANDBOX_WORKSPACE_POSIX = "/root/workspace"
+# 实际值取自 config [sandbox].container_workspace；此处仅为兜底默认。
+SANDBOX_WORKSPACE_POSIX = "/workspace"
 
 _LONG_RUNNING_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
     re.compile(p, re.IGNORECASE)

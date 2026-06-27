@@ -12,6 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from smartclaw.paths import default_docker_workspace_parent
 from smartclaw.subprocess_io import SUBPROCESS_TEXT_KWARGS
 
 from .container_pool import ContainerPool, ContainerStatus
@@ -50,10 +51,10 @@ class ProjectManager:
     
     def __init__(
         self,
-        workspace: str = "/root/smartclaw_workspace",
+        workspace: Optional[str] = None,
         container_pool: ContainerPool = None,
     ):
-        self.workspace = Path(workspace)
+        self.workspace = Path(workspace) if workspace else default_docker_workspace_parent()
         self.meta_dir = self.workspace / ".projects"
         
         # 初始化容器池

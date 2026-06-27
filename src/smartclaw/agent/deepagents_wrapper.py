@@ -137,7 +137,9 @@ def _workspace_write_guard_retry_enabled() -> bool:
     return raw not in ("0", "false", "no", "off")
 
 
-def _workspace_write_followup_human(host_root: Optional[str], *, docker_mode: bool) -> str:
+def _workspace_write_followup_human(
+    host_root: Optional[str], *, docker_mode: bool, container_workspace: str = "/workspace"
+) -> str:
     """第一轮零工具时追加的 Human，强制模型进入工具链。"""
     parts = [
         "[SmartClaw｜系统续跑 — 落盘复核]",
@@ -148,8 +150,8 @@ def _workspace_write_followup_human(host_root: Optional[str], *, docker_mode: bo
     ]
     if docker_mode:
         parts.append(
-            "**Docker 沙箱**：`execute` 在容器内运行，工作区挂载为 **`/root/workspace`**；"
-            "请 `cd /root/workspace` 后使用相对路径，或使用 **`/root/workspace/…`**。"
+            f"**Docker 沙箱**：`execute` 在容器内运行，工作区挂载为 **`{container_workspace}`**；"
+            f"请 `cd {container_workspace}` 后使用相对路径，或使用 **`{container_workspace}/…`**。"
         )
     if host_root:
         parts.append(f"宿主工作区根（read/write_file 语义）：`{host_root}`。")
@@ -517,10 +519,11 @@ class DeepAgentsWrapper:
                 "- 在项目内创建文件：优先 **write_file** 或 **execute** 使用**相对路径**（相对于上述根）；不要随意声称文件在 `/tmp/` 除非你真的把文件写入了当前系统允许访问的临时目录且对用户有意义。\n"
             )
             if sb_backend and sb_inst and getattr(sb_backend, "backend_type", "") == "docker":
+                _container_ws = getattr(sb_backend, "container_workspace", "/workspace")
                 workspace_facts += (
-                    "- **Docker 沙箱**：**execute（Shell）在容器内运行**，该目录在容器中挂载为 **`/root/workspace`**（与上述宿主根目录内容一致）。"
-                    " Shell 中请 **`cd /root/workspace`** 后使用相对路径，或使用 **`/root/workspace/...`**。"
-                    " 宿主绝对路径在容器内默认不存在；运行时会把常见的宿主工作区前缀改写为 `/root/workspace`，仍建议直接在 Shell 里用容器路径或相对路径。\n"
+                    f"- **Docker 沙箱**：**execute（Shell）在容器内运行**，该目录在容器中挂载为 **`{_container_ws}`**（与上述宿主根目录内容一致）。"
+                    f" Shell 中请 **`cd {_container_ws}`** 后使用相对路径，或使用 **`{_container_ws}/...`**。"
+                    f" 宿主绝对路径在容器内默认不存在；运行时会把常见的宿主工作区前缀改写为 `{_container_ws}`，仍建议直接在 Shell 里用容器路径或相对路径。\n"
                     "- **read_file / write_file** 仍作用于宿主侧同一工作区；向用户说明「项目文件位置」时继续使用 **`"
                     f"{root_disp}"
                     "`**。\n"
@@ -847,7 +850,9 @@ class DeepAgentsWrapper:
                     write_record_start_2 = 0
                 docker_mode = isinstance(self._backend, DockerDeepAgentsBackend)
                 follow_h = _workspace_write_followup_human(
-                    host_root, docker_mode=docker_mode
+                    host_root,
+                    docker_mode=docker_mode,
+                    container_workspace=getattr(self._backend, "container_workspace", "/workspace"),
                 )
                 t_retry = time.perf_counter()
                 result = self._agent.invoke(

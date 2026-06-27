@@ -218,7 +218,7 @@ smartclaw start --reload
 
 ### 生产模式启动
 
-#### 1. 快速配置 TOML（单机生产配置脚本）
+#### 1. 快速配置TOML（单机生产配置脚本）
 
 ```bash
 # 复制示例shell脚本文件
@@ -232,6 +232,9 @@ sudo bash setup.sh
 
 # 使环境变量生效
 source ~/.bashrc
+
+# 增加用户权限
+sudo chown -R $USER:$USER /opt/smartclaw
 ```
 
 > **.env 与 config.toml 的覆盖关系**：
@@ -280,6 +283,13 @@ smartclaw start --port 8080 --workers 4
 nohup smartclaw start --feishu --multi-process > /dev/null 2>&1 &
 ```
 
+### 停止服务
+
+```bash
+smartclaw stop        # 正常停止
+smartclaw stop -f     # 强制终止
+```
+
 ### 验证服务状态
 
 ```bash
@@ -305,6 +315,7 @@ tail -f /opt/smartclaw/logs/smartclaw.log
 | `smartclaw --help` | 显示帮助 | `smartclaw -h` |
 | `smartclaw init` | 初始化项目 | `smartclaw init --force` |
 | `smartclaw start` | 启动服务 | `smartclaw start --feishu` |
+| `smartclaw stop` | 停止服务 | `smartclaw stop -f` |
 | `smartclaw status` | 显示状态 | `smartclaw status` |
 | `smartclaw doctor` | 环境诊断 | `smartclaw doctor` |
 
@@ -467,7 +478,7 @@ smartclaw start --port 8080
 sudo smartclaw start
 
 # 或创建必要的目录
-sudo mkdir -p /opt/smartclaw/{config,data,logs,sandboxes}
+sudo mkdir -p /opt/smartclaw/{config,data,logs,sandboxes,workspace}
 sudo chown -R $USER:$USER /opt/smartclaw
 ```
 

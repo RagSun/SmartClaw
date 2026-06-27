@@ -54,20 +54,22 @@ class SecureSandboxExecutor:
     def _build_volumes(self, project_name: str = None) -> dict[str, str]:
         """构建卷挂载"""
         volumes = {}
-        
+        # 容器内挂载目标：与活跃路径统一取自 config [sandbox].container_workspace
+        mount_target = self.config.docker.workdir or "/workspace"
+
         if self.config.workspace_access == "none":
             # 使用沙箱专用工作区
             sandbox_ws = Path.home() / ".smartclaw" / "sandboxes" / (project_name or "default")
             sandbox_ws.mkdir(parents=True, exist_ok=True)
-            volumes[str(sandbox_ws)] = "/workspace"
-        
+            volumes[str(sandbox_ws)] = mount_target
+
         elif self.config.workspace_access in ["ro", "rw"]:
             # 挂载宿主机的 smartclaw_workspace
             if self.config.workspace_access == "ro":
-                volumes[f"{self.workspace}:/workspace:ro"] = ""  # 占位
+                volumes[f"{self.workspace}:{mount_target}:ro"] = ""  # 占位
             else:
-                volumes[str(self.workspace)] = "/workspace"
-        
+                volumes[str(self.workspace)] = mount_target
+
         return volumes
     
     async def create_container(

@@ -14,7 +14,7 @@ LLM_MODEL="deepseek-v4-flash"
 LLM_BASE_URL="https://api.deepseek.com/v1"
 
 #========= Vision 配置 =========
-VISION_ENABLED="true"
+VISION_ENABLED="false"
 VISION_API_KEY=""
 VISION_MODEL="qwen3.7-plus"
 VISION_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
@@ -101,7 +101,7 @@ port = 8000
 workers = 4
 
 [smartclaw]
-agent_workspace_base = "/opt/smartclaw/data/workspace"
+agent_workspace_base = "/opt/smartclaw/workspace"
 
 [logging]
 level = "INFO"
@@ -145,7 +145,7 @@ REAL_HOME="$(eval echo "~$REAL_USER")"
 BASHRC="$REAL_HOME/.bashrc"
 VENV_PATH_LINE="export PATH=\"$VENV_BIN:\$PATH\"  # SmartClaw venv"
 FC_HOME_LINE="export SMARTCLAW_HOME=\"/opt/smartclaw\"  # SmartClaw 运行时根目录"
-FC_WORKSPACE_LINE="export SMARTCLAW_AGENT_WORKSPACE_BASE=\"/opt/smartclaw/data/workspace\"  # Agent 工作区根目录"
+FC_WORKSPACE_LINE="export SMARTCLAW_AGENT_WORKSPACE_BASE=\"/opt/smartclaw/workspace\"  # Agent 工作区根目录"
 
 # 确保文件末尾有换行（防止 echo >> 与上一行拼接）
 if [ -f "$BASHRC" ]; then

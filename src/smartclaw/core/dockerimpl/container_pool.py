@@ -12,6 +12,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
+from smartclaw.paths import default_docker_workspace_parent
 from smartclaw.subprocess_io import SUBPROCESS_TEXT_KWARGS
 
 
@@ -39,6 +40,18 @@ class ContainerConfig:
     environment: dict = None
     preferred_port: int = None  # 优先使用的宿主机端口
     network_mode: str = "host"  # 网络模式: "host"(推荐) 或 "bridge"(需要端口映射)
+    # 容器内工作区挂载点（bind mount 目标与 -w），统一取自 config [sandbox].container_workspace
+    container_workspace: str = field(default_factory=lambda: _container_workspace_default())
+
+
+def _container_workspace_default() -> str:
+    """容器内工作区挂载点：取自 config [sandbox].container_workspace，兜底 /workspace。"""
+    try:
+        from smartclaw.config.loader import get_config
+
+        return (get_config().sandbox.container_workspace or "/workspace")
+    except Exception:
+        return "/workspace"
 
 
 @dataclass
@@ -215,7 +228,7 @@ class ProjectContainer:
     
     async def _do_create(self, image: str) -> str:
         """实际创建容器"""
-        workspace = self.config.workspace_path or Path(f"/root/smartclaw_workspace/{self.config.project_name}")
+        workspace = self.config.workspace_path or (default_docker_workspace_parent() / self.config.project_name)
         
         # 端口映射
         port_bindings = {}
@@ -234,8 +247,8 @@ class ProjectContainer:
             "docker", "run", "-d",
             "--name", f"smartclaw-{self.config.project_name}",
             "--hostname", self.config.project_name,
-            "-v", f"{workspace}:/root/workspace:rw",
-            "-w", "/root/workspace",
+            "-v", f"{workspace}:{self.config.container_workspace}:rw",
+            "-w", self.config.container_workspace,
             "--memory", self.config.memory_limit,
             "--cpus", str(self.config.cpu_limit),
             "--restart", "unless-stopped",
@@ -389,7 +402,7 @@ class ProjectContainer:
     
     def _save_meta(self):
         """保存容器元数据"""
-        meta_dir = Path(f"/root/smartclaw_workspace/.projects/{self.config.project_name}")
+        meta_dir = default_docker_workspace_parent() / ".projects" / self.config.project_name
         meta_dir.mkdir(parents=True, exist_ok=True)
         
         meta = {
@@ -432,11 +445,11 @@ class ContainerPool:
         self,
         max_containers: int = 4,
         idle_timeout: int = 1800,  # 30 分钟
-        workspace: str = "/root/smartclaw_workspace",
+        workspace: Optional[str] = None,
     ):
         self.max_containers = max_containers
         self.idle_timeout = idle_timeout
-        self.workspace = Path(workspace)
+        self.workspace = Path(workspace) if workspace else default_docker_workspace_parent()
         
         self._containers: dict[str, ProjectContainer] = {}
         self._lock = asyncio.Lock()

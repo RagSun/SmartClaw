@@ -842,7 +842,7 @@ class AgentRunner:
             ws_resolved = self._resolve_agent_workspace_dir_early()
             create_kw["host_workspace_dir"] = str(ws_resolved)
             info(
-                f"[Runner] Docker 沙箱将挂载宿主工作区: {ws_resolved} -> 容器内 /root/workspace"
+                f"[Runner] Docker 沙箱将挂载宿主工作区: {ws_resolved} -> 容器内 {getattr(self.sandbox_backend, 'container_workspace', '/workspace')}"
             )
 
         # 从预热池获取或创建实例

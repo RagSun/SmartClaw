@@ -14,20 +14,30 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
+def _container_workspace_default() -> str:
+    """容器内工作区挂载点：取自 config [sandbox].container_workspace，兜底 /workspace。"""
+    try:
+        from smartclaw.config.loader import get_config
+
+        return (get_config().sandbox.container_workspace or "/workspace")
+    except Exception:
+        return "/workspace"
+
+
 @dataclass
 class SandboxDockerConfig:
     """
     Docker 沙箱安全配置
-    
+
     参考 OpenClaw agents.defaults.sandbox.docker
     """
-    
+
     # 镜像
     image: str = "python:3.12-slim"
     container_prefix: str = "smartclaw-sbx-"
-    
-    # 工作目录
-    workdir: str = "/workspace"
+
+    # 工作目录（与活跃路径统一取自 config [sandbox].container_workspace）
+    workdir: str = field(default_factory=_container_workspace_default)
     
     # 安全: 根文件系统只读
     read_only_root: bool = True

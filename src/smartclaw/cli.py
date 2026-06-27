@@ -427,86 +427,19 @@ def init_default_agent(project_path: Path, *, force_workspace: bool = False) -> 
 
 
 def _create_default_config(config_path: "Path") -> None:
-    """创建默认配置文件"""
-    import tomli_w
+    """创建默认配置文件：以项目内静态模板 ``config/config.toml`` 复制生成。
 
-    default_config = {
-        "smartclaw": {
-            "name": "SmartClaw",
-            "version": __version__,
-            "environment": "development",
-        },
-        "server": {
-            "host": "0.0.0.0",
-            "port": 8000,
-            "workers": 1,
-            # 边缘防护：HTTP 请求体大小上限（字节），超过即 413；0 = 不限制。默认 1 MiB。
-            "max_request_bytes": 1048576,
-        },
-        "sandbox": {
-            "enabled": True,
-            "backend": "firecracker",
-            "warm_pool_size": 5,
-            "max_instances": 100,
-            "memory_mb": 128,
-            "cpu_count": 1,
-        },
-        "channels": {
-            "feishu": {
-                "enabled": False,
-                "app_id": "",
-                "app_secret": "",
-            },
-            "wecom": {
-                "enabled": False,
-                "corp_id": "",
-                "agent_id": "",
-                "secret": "",
-            },
-        },
-        "logging": {
-            "level": "INFO",
-            "file_enabled": True,
-            "file_path": "logs/smartclaw.log",
-            "console_enabled": True,
-        },
-        "llm": {
-            "provider": "openai",
-            "model": "",
-            "base_url": "",
-            "api_key": "",
-            "max_tokens": 8192,
-            "temperature": 0.7,
-            "top_p": 1.0,
-        },
-        "vision": {
-            "enabled": False,
-            "model": "glm-4v",
-            "base_url": "https://open.bigmodel.cn/api/coding/paas/v4",
-            "api_key": "",
-            "timeout": 60,
-            "max_retries": 3,
-        },
-        "langsmith": {
-            "enabled": False,
-            "api_key": "",
-            "project": "",
-            "endpoint": "",
-        },
-        # 管理面 /api/admin/* 鉴权（默认安全，与监控凭证隔离；生产用 SMARTCLAW_ADMIN_TOKEN 注入）
-        "auth": {
-            "admin_require_auth": True,
-            "admin_bearer_token": "",
-        },
-        # 记忆数据面后端：sqlite（默认，自动建表/迁移，零手工 DDL）| postgres（多副本共享，见 progress.md §12/§13）
-        # 也可用环境变量覆盖：SMARTCLAW_MEMORY_STORE / SMARTCLAW_MEMORY_POSTGRES_DSN
-        "memory": {
-            "store": "sqlite",
-        },
-    }
+    ``agent_workspace_base`` 由 init 随后通过 ``_merge_unified_agent_workspace_base``
+    按项目路径重写，故模板中携带的机器路径不会污染新项目。
+    """
+    import shutil
 
-    with open(config_path, "wb") as f:
-        tomli_w.dump(default_config, f)
+    # 唯一静态模板来源：项目内 config/config.toml
+    template = Path(__file__).resolve().parent.parent.parent / "config" / "config.toml"
+    if not template.is_file():
+        error(f"静态模板不存在: {template}")
+        raise typer.Exit(1)
+    shutil.copy(template, config_path)
 
 # ==================== install 命令 ====================
 
@@ -534,13 +467,16 @@ def install_command(
     success("  目录创建完成")
     
     info("[2/4] 初始化全局配置...")
-    config_template = source_dir / "config" / "config.toml.template"
+    config_template = source_dir / "config" / "config.toml"
     config_target = install_config_dir / "config.toml"
     if config_target.exists() and not force:
         info("  全局配置已存在 (跳过)")
     else:
         if config_template.exists():
             shutil.copy(config_template, config_target)
+        else:
+            error(f"静态模板不存在: {config_template}")
+            raise typer.Exit(1)
         success(f"  全局配置已创建: {config_target}")
     
     info("[3/4] 创建默认 Agent...")
@@ -942,31 +878,28 @@ def status_command() -> None:
     console.print(table)
 
     # 渠道状态 - 读取真实配置
-    from pathlib import Path
-    import tomllib as tomli
-
     channel_table = Table(title="渠道状态", show_header=True, header_style="cyan bold")
     channel_table.add_column("渠道")
     channel_table.add_column("状态")
     channel_table.add_column("配置")
 
-    # 读取配置
-    config_path = paths.get_config_file()
+    # 读取配置：用 loader 的 get_config()，确保与运行时一致（含 .env 覆盖与 accounts 结构）
+    from smartclaw.config.loader import get_config
 
     feishu_status = "[yellow]未配置[/yellow]"
     feishu_config = "-"
-    
-    if config_path.exists():
-        try:
-            with open(config_path, "rb") as f:
-                config = tomli.load(f)
-            feishu = config.get("channels", {}).get("feishu", {})
-            if feishu.get("app_id"):
-                feishu_status = "[green]已配置[/green]"
-                feishu_config = feishu.get("app_id", "-")[:15] + "..."
-        except Exception:
-            pass
-    
+
+    try:
+        feishu = get_config().channels.feishu
+        # 优先看多账号结构；兼容旧版顶层 app_id
+        acc = feishu.get_default_account() if hasattr(feishu, "get_default_account") else None
+        app_id = (acc.app_id if acc else "") or (getattr(feishu, "app_id", "") or "")
+        if app_id:
+            feishu_status = "[green]已配置[/green]"
+            feishu_config = app_id[:15] + "..."
+    except Exception:
+        pass
+
     channel_table.add_row("飞书", feishu_status, feishu_config)
     channel_table.add_row("企业微信", "[yellow]未配置[/yellow]", "-")
 
@@ -1281,13 +1214,23 @@ def doctor_command(
     from smartclaw.agent.workspace import default_agent_workspace_base, resolve_agent_workspace_dir
 
     _agent_cfgs = dx.iter_agent_json_configs()
-    checks.append(
-        (
-            "Agent: workspace 根",
-            "[green]OK[/green]",
-            str(default_agent_workspace_base(cfg)),
+    _ws_root = default_agent_workspace_base(cfg)
+    if _ws_root.exists():
+        checks.append(
+            (
+                "Agent: workspace 根",
+                "[green]OK[/green]",
+                str(_ws_root),
+            )
         )
-    )
+    else:
+        checks.append(
+            (
+                "Agent: workspace 根",
+                "[red]失败[/red]",
+                f"未发现agent工作目录（{_ws_root}）",
+            )
+        )
     if not _agent_cfgs:
         checks.append(
             (
@@ -3078,10 +3021,12 @@ def agent_list(
                 # 获取 display_name
                 display = config.get("display_name", name)
                 
-                # 获取飞书配置
+                # 获取飞书配置：agent.json 为空时回退全局 default 账号（与 loader/运行时一致）
                 feishu_cfg = config.get("feishu", {})
-                app_id = feishu_cfg.get("app_id", "")
-                app_secret = feishu_cfg.get("app_secret", "")
+                _gf = getattr(getattr(_cfg, "channels", None), "feishu", None)
+                _g_acc = _gf.get_default_account() if _gf is not None and hasattr(_gf, "get_default_account") else None
+                app_id = feishu_cfg.get("app_id", "") or (getattr(_g_acc, "app_id", "") if _g_acc else "")
+                app_secret = feishu_cfg.get("app_secret", "") or (getattr(_g_acc, "app_secret", "") if _g_acc else "")
                 
                 # 掩码处理
                 app_id_display = app_id[:10] + "..." if len(app_id) > 10 else (app_id or "❌ 未配置")
@@ -3128,6 +3073,10 @@ def agent_list(
                     "provider": getattr(_gllm, "provider", ""),
                 }
                 _eff_llm = merge_agent_llm_with_global(llm_cfg, _global_llm_dict)
+                # 显示用「运行时生效模型」：agent.json llm 为空时回退全局 [llm]
+                _eff_model = str(_eff_llm.get("model_name") or "").strip()
+                if _eff_model:
+                    model_name = _eff_model
                 missing_fields = [
                     label
                     for field, label in (

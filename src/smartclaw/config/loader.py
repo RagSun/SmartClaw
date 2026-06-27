@@ -187,6 +187,11 @@ class SandboxConfig(BaseModel):
     max_instances: int = Field(default=100, description="最大实例数")
     memory_mb: int = Field(default=128, description="内存 MB")
     cpu_count: int = Field(default=1, description="CPU 核数")
+    container_workspace: str = Field(
+        default="/workspace",
+        description="Docker 沙箱容器内工作区挂载点（bind mount 目标与 -w 工作目录）；"
+        "中性路径，root 与非 root 用户均兼容。可经 SANDBOX_CONTAINER_WORKSPACE 覆盖。",
+    )
 
 
 class LoggingConfig(BaseModel):
@@ -880,6 +885,9 @@ class ConfigLoader:
                     default.verification_token = v
 
         # ── [channels.wecom] ──
+        v = _env_bool("WECOM_ENABLED")
+        if v is not None:
+            cfg.channels.wecom.enabled = v
         v = _env("WECOM_CORP_ID")
         if v:
             cfg.channels.wecom.corp_id = v
@@ -900,6 +908,12 @@ class ConfigLoader:
         v = _env_int("SANDBOX_CPU_COUNT")
         if v is not None:
             cfg.sandbox.cpu_count = v
+        v = _env("SANDBOX_TYPE")
+        if v:
+            cfg.sandbox.backend = v
+        v = _env("SANDBOX_CONTAINER_WORKSPACE")
+        if v:
+            cfg.sandbox.container_workspace = v
 
         # ── [server] ──
         v = _env("SERVER_HOST")

@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from smartclaw.paths import default_docker_workspace_parent
 from smartclaw.subprocess_io import SUBPROCESS_TEXT_KWARGS
 
 
@@ -24,36 +25,45 @@ class PortMapping:
 class PortPool:
     """
     端口池管理器
-    
+
     负责端口的分配、释放、冲突检测。
     一个项目可以有多个端口映射。
     """
-    
+
     def __init__(
         self,
-        workspace: str = "/root/smartclaw_workspace",
+        workspace: Optional[str] = None,
         port_range: tuple[int, int] = (5000, 6000),
     ):
-        self.workspace = Path(workspace)
+        self.workspace = Path(workspace) if workspace else default_docker_workspace_parent()
         self.port_range = range(port_range[0], port_range[1])
-        
+
         # 项目端口分配记录: project_name -> {container_port: host_port}
         self._allocations: dict[str, dict[int, int]] = {}
-        
+
         # 已预留的宿主机端口
         self._reserved: set[int] = set()
-        
+
         # 加载已有分配
         self._load_allocations()
-    
+
     def _load_allocations(self):
         """从元数据目录加载已有端口分配"""
         meta_dir = self.workspace / ".projects"
-        
-        if not meta_dir.exists():
+
+        try:
+            if not meta_dir.exists():
+                return
+        except OSError:
+            # 无权限访问元数据目录（如遗留的 /root/smartclaw_workspace），跳过加载
             return
-        
-        for meta_path in meta_dir.rglob(".project_meta.json"):
+
+        try:
+            meta_paths = list(meta_dir.rglob(".project_meta.json"))
+        except OSError:
+            return
+
+        for meta_path in meta_paths:
             try:
                 import json
                 meta = json.loads(meta_path.read_text())

@@ -20,8 +20,8 @@ RUN apt-get update && apt-get install -y \
 ENV PYTHONUNBUFFERED=1
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 设置工作目录
-WORKDIR /root/workspace
+# 设置工作目录（与 config [sandbox].container_workspace 默认值一致；运行时 -w 会覆盖）
+WORKDIR /workspace
 
 # 默认命令（保持容器运行）
 CMD ["sleep", "infinity"]

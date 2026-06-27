@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from smartclaw.paths import default_docker_workspace_parent
 from smartclaw.subprocess_io import SUBPROCESS_TEXT_KWARGS
 
 
@@ -30,19 +31,19 @@ class Snapshot:
 class SnapshotManager:
     """
     快照管理器
-    
+
     支持创建项目快照、从快照恢复、列出快照。
     """
-    
+
     def __init__(
         self,
-        workspace: str = "/root/smartclaw_workspace",
+        workspace: Optional[str] = None,
         keep_snapshots: int = 3,
     ):
-        self.workspace = Path(workspace)
+        self.workspace = Path(workspace) if workspace else default_docker_workspace_parent()
         self.snapshot_dir = self.workspace / ".projects" / ".snapshots"
         self.keep_snapshots = keep_snapshots
-        
+
         # 确保快照目录存在
         self.snapshot_dir.mkdir(parents=True, exist_ok=True)
     

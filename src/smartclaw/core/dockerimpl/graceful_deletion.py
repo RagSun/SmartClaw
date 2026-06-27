@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
+from smartclaw.paths import default_docker_workspace_parent
+
 
 @dataclass
 class GracefulStatus:
@@ -34,10 +36,10 @@ class GracefulDeletion:
     
     def __init__(
         self,
-        workspace: str = "/root/smartclaw_workspace",
+        workspace: Optional[str] = None,
         snapshot_manager = None,
     ):
-        self.workspace = Path(workspace)
+        self.workspace = Path(workspace) if workspace else default_docker_workspace_parent()
         self.snapshot_manager = snapshot_manager
         
         # 待删除任务调度器

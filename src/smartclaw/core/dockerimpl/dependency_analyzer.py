@@ -268,17 +268,26 @@ class DependencyAnalyzer:
         self,
         project_dir: Path,
         base_image: str = "python:3.12-slim",
+        container_workspace: str = None,
     ) -> str:
         """
         生成项目专用的 Dockerfile
-        
+
         Args:
             project_dir: 项目目录
             base_image: 基础镜像
-            
+            container_workspace: 容器内工作目录（WORKDIR），默认取自 config [sandbox].container_workspace
+
         Returns:
             Dockerfile 内容
         """
+        if not container_workspace:
+            try:
+                from smartclaw.config.loader import get_config
+
+                container_workspace = get_config().sandbox.container_workspace or "/workspace"
+            except Exception:
+                container_workspace = "/workspace"
         deps = self.analyze(project_dir)
         
         lines = [
@@ -302,7 +311,7 @@ class DependencyAnalyzer:
             "ENV DEBIAN_FRONTEND=noninteractive",
             "",
             "# 设置工作目录",
-            "WORKDIR /root/workspace",
+            f"WORKDIR {container_workspace}",
             "",
             "# 默认命令",
             'CMD ["sleep", "infinity"]',

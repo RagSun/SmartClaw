@@ -44,7 +44,7 @@
   - `UnifiedExecutionEngine` 可在执行节点向 EventBus 发射 **`execution.*`** 类事件（与 Harness L1 设计一致）；默认配置通常为 **`event_bus_enabled = false`**，属渐进上线策略，而非「未实现」。
 - **仍建议改进（文档/可读性）**:
   1. `runner.py` 顶部与 `__init__` 中注释已与上述行为对齐（2026-04-30）。
-  2. 在 `ARCHITECTURE.md` / `config.toml.template` 中明确：**默认关闭**、开启方式与 JSONL 落盘路径。
+  2. 在 `ARCHITECTURE.md` / `config.toml` 中明确：**默认关闭**、开启方式与 JSONL 落盘路径。
   3. 多进程 / 多副本下 EventBus 文件写入一致性依赖部署验证（见 `event_bus` 实现与运维约定）。
 
 ### 2.2 LLM 提供商与「Claude 流式未实现」的准确含义

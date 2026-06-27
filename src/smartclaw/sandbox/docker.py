@@ -15,23 +15,28 @@ from dataclasses import dataclass
 from typing import Any, Optional, Union
 
 from smartclaw.console import error, info, warning
+from smartclaw.paths import default_docker_workspace_parent
 from smartclaw.subprocess_io import SUBPROCESS_TEXT_KWARGS
 
 # Docker 操作通过 subprocess 执行，不需要 Python SDK
 # 使用 docker CLI 代替 Python SDK
 
+# default_docker_workspace_parent 由 smartclaw.paths 提供（与 core/dockerimpl 共用）
 
-def default_docker_workspace_parent() -> Path:
-    """
-    宿主机上用于 ``DockerSandboxBackend.workspace / <agent_id>`` 的默认父目录。
 
-    非 root 用户无法写入 ``/root/smartclaw_workspace``；默认落到当前用户家目录下。
-    可通过环境变量 ``SMARTCLAW_DOCKER_WORKSPACE_PARENT`` 覆盖。
+def default_container_workspace() -> str:
     """
-    raw = (os.environ.get("SMARTCLAW_DOCKER_WORKSPACE_PARENT") or "").strip()
-    if raw:
-        return Path(os.path.expanduser(raw)).expanduser().resolve()
-    return (Path.home() / ".smartclaw" / "docker_workspace").resolve()
+    容器内工作区挂载点（bind mount 目标与 ``-w`` 工作目录）。
+
+    取自 ``config.toml [sandbox].container_workspace``（可经 ``SANDBOX_CONTAINER_WORKSPACE``
+    环境变量覆盖），兜底 ``/workspace``。中性路径，root 与非 root 用户均兼容。
+    """
+    try:
+        from smartclaw.config.loader import get_config
+
+        return (get_config().sandbox.container_workspace or "/workspace")
+    except Exception:
+        return "/workspace"
 
 
 class DockerInstanceInfo:
@@ -177,6 +182,8 @@ class DockerSandboxBackend:
         exposed_ports: list = None,  # 固定端口列表（保留）
         port_range_start: int = 5000,  # 动态端口范围起始
         port_range_end: int = 6000,  # 动态端口范围结束
+        # 容器内工作区挂载点（bind mount 目标与 -w 工作目录）
+        container_workspace: str = None,
     ):
         ws = workspace
         if ws is None or (isinstance(ws, str) and not str(ws).strip()):
@@ -185,6 +192,8 @@ class DockerSandboxBackend:
             self.workspace = Path(os.path.expanduser(str(ws))).expanduser().resolve()
         self.base_image = base_image
         self.max_containers = max_containers
+        # 容器内工作区挂载点：bind mount 目标 + `-w` 工作目录
+        self.container_workspace = (container_workspace or default_container_workspace() or "/workspace")
 
         # 安全配置
         self.security_mode = security_mode
@@ -366,7 +375,7 @@ class DockerSandboxBackend:
             agent_id: Agent ID (兼容旧接口)
             memory_mb: 内存限制 MB (未实现)
             cpu_count: CPU 核心数 (未实现)
-            host_workspace_dir: 宿主侧目录，直接绑定到容器 ``/root/workspace``。
+            host_workspace_dir: 宿主侧目录，直接绑定到容器 ``self.container_workspace``。
                 与 DeepAgents / agent.json 解析出的工作区一致时，宿主机文件与容器内可见同一棵树。
                 未指定时沿用 ``self.workspace / project_name``（兼容预热池等场景）。
         """
@@ -394,8 +403,8 @@ class DockerSandboxBackend:
                 "--name", container_name,
                 "--hostname", project_name,
                 "--label", "managed-by=smartclaw",  # 注入工业级生命周期管理标签
-                "-v", f"{project_dir}:/root/workspace:rw",
-                "-w", "/root/workspace",
+                "-v", f"{project_dir}:{self.container_workspace}:rw",
+                "-w", self.container_workspace,
             ]
 
             if self.security_mode:

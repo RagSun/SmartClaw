@@ -101,6 +101,7 @@ source .venv/bin/activate
 # 设置环境变量
 export SMARTCLAW_HOME="$HOME/.smartclaw"
 export SMARTCLAW_AGENT_WORKSPACE_BASE="$HOME/.smartclaw/workspace"
+source ~/.bashrc
 
 # 查看版本
 smartclaw --version
@@ -184,9 +185,6 @@ smartclaw doctor
 ### 初始化
 
 ```bash
-# 设置运行时根目录（飞书/多进程启动必需）
-export SMARTCLAW_HOME="$HOME/.smartclaw"
-
 # 初始化项目
 smartclaw init
 ```
@@ -201,17 +199,19 @@ smartclaw start
 smartclaw start --reload
 ```
 
-### 快速配置TOML（单机生产）
+### 生产模式
+
+#### 1. 快速配置TOML（单机生产配置脚本）
 
 ```bash
 cp setup.sh.example setup.sh
 vi setup.sh                    # 编辑配置参数
 sudo bash setup.sh             # 写入 /opt/smartclaw/config/config.toml
 source ~/.bashrc
+sudo chown -R $USER:$USER /opt/smartclaw  # 增加用户权限
 ```
 
-### 生产模式
-
+#### 2. 启动生产服务
 ```bash
 # 飞书渠道，多进程
 smartclaw start --feishu --multi-process
@@ -224,6 +224,13 @@ smartclaw start --port 8080 --workers 4
 
 # 后台运行
 nohup smartclaw start --feishu --multi-process > /dev/null 2>&1 &
+```
+
+### 停止服务
+
+```bash
+smartclaw stop        # 正常停止
+smartclaw stop -f     # 强制终止
 ```
 
 ### 验证服务
@@ -246,6 +253,7 @@ tail -f /opt/smartclaw/logs/smartclaw.log
 | `smartclaw --help` | 显示帮助 | `smartclaw -h` |
 | `smartclaw init` | 初始化项目 | `smartclaw init --force` |
 | `smartclaw start` | 启动服务 | `smartclaw start --feishu` |
+| `smartclaw stop` | 停止服务 | `smartclaw stop -f` |
 | `smartclaw status` | 显示状态 | `smartclaw status` |
 | `smartclaw doctor` | 环境诊断 | `smartclaw doctor` |
 
@@ -334,9 +342,7 @@ smartclaw/
 ### 开发安装
 
 ```bash
-git clone https://github.com/DaTingLi/smartclaw.git
 cd smartclaw
-
 uv venv
 source .venv/bin/activate
 uv pip install -e ".[dev]"
