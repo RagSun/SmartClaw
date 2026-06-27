@@ -1504,21 +1504,62 @@ def config_show(
         },
     }
 
+    # 聚合 Agent 信息（与 agent list 同源：data/agents/*/agent.json）
+    import json as _json
+    from smartclaw.tenant import DEFAULT_TENANT_ID, normalize_tenant_id, tenant_agent_key
+
+    agents_summary: dict[str, dict[str, Any]] = {}
+    for agents_dir in paths.get_agents_dirs():
+        if not agents_dir.exists():
+            continue
+        for agent_json_path in (
+            list(agents_dir.glob("*/agent.json")) + list(agents_dir.glob("*/*/agent.json"))
+        ):
+            try:
+                agent_data = _json.loads(agent_json_path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if not isinstance(agent_data, dict):
+                continue
+            name = agent_data.get("name", agent_json_path.parent.name)
+            raw_tid = str(agent_data.get("tenant_id") or "").strip()
+            if raw_tid:
+                tenant_id = normalize_tenant_id(raw_tid)
+            else:
+                rel_parts = agent_json_path.relative_to(agents_dir).parts
+                tenant_id = normalize_tenant_id(rel_parts[0]) if len(rel_parts) == 3 else DEFAULT_TENANT_ID
+            qname = tenant_agent_key(name, tenant_id)
+            agents_summary[qname] = {
+                "name": name,
+                "tenant": tenant_id,
+                "enabled": agent_data.get("enabled", True),
+                "channel": agent_data.get("channel", "-"),
+                "model": (agent_data.get("llm") or {}).get("model_name", "(继承全局)"),
+                "sandbox_enabled": (agent_data.get("sandbox") or {}).get("enabled", False),
+            }
+
+    if agents_summary:
+        display["agents"] = {
+            "count": len(agents_summary),
+            "list": agents_summary,
+        }
+
     if key:
-        # 显示指定键（支持点号路径，如 llm.model）
+        # 显示指定键（支持点号路径，如 llm.model / agents / agents.list.<agent_name>）
         keys = key.split(".")
         value: Any = display
         try:
             for k in keys:
                 value = value[k]
-            console.print(f"[cyan]{key}[/cyan] = [green]{value}[/green]")
+            if isinstance(value, (dict, list)):
+                console.print_json(data=value)
+            else:
+                console.print(f"[cyan]{key}[/cyan] = [green]{value}[/green]")
         except (KeyError, TypeError):
             error(f"配置键不存在: {key}")
             raise typer.Exit(1)
     else:
-        import json
-
-        config_json = json.dumps(display, indent=2, ensure_ascii=False)
+        config_json = _json.dumps(display, indent=2, ensure_ascii=False)
         source_note = (
             f"TOML: {config_path}" if config_path and config_path.exists()
             else "使用默认配置"
