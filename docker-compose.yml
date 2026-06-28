@@ -1,0 +1,146 @@
+# ==============================================
+# SmartClaw — 生产级企业 AI Agent 平台
+# ==============================================
+# 快速启动:
+#   docker compose up -d                      # 默认: smartclaw + redis
+#   docker compose --profile postgres up -d    # 含 PostgreSQL
+#   docker compose --profile sandbox up -d     # 含 Docker-in-Docker 沙箱
+#   docker compose --profile full up -d        # 全部服务
+# ==============================================
+
+services:
+  # ============================================
+  # SmartClaw 主应用
+  # ============================================
+  smartclaw:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smartclaw
+    restart: unless-stopped
+    ports:
+      - "${SERVER_PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      # —— Redis（governance 存储 + webhook 重放防护） ——
+      - SMARTCLAW_GOVERNANCE_REDIS_URL=redis://redis:6379/0
+      # —— 数据库（默认 SQLite；切 postgres 时取消下方注释并设置 .env） ——
+      # - DATABASE_TYPE=postgresql
+      # - DATABASE_HOST=postgres
+      # - DATABASE_PORT=5432
+      # - DATABASE_NAME=smartclaw
+      # - DATABASE_USER=smartclaw
+      # - DATABASE_PASSWORD=${DATABASE_PASSWORD:-smartclaw}
+      # —— 路径覆盖（容器内固定路径） ——
+      - CONFIG_DIR=/opt/smartclaw/config
+      - DATA_DIR=/opt/smartclaw/data
+      - LOG_DIR=/opt/smartclaw/logs
+      - LOG_FILE=/opt/smartclaw/logs/smartclaw.log
+      - EVENT_BUS_DIR=/opt/smartclaw/data/event-bus
+      - SUBAGENT_STATE_DIR=/opt/smartclaw/data/subagent-state
+    volumes:
+      - smartclaw_config:/opt/smartclaw/config
+      - smartclaw_data:/opt/smartclaw/data
+      - smartclaw_logs:/opt/smartclaw/logs
+      - sandboxes:/opt/smartclaw/sandboxes
+      # 若需要在容器内使用 Docker 沙箱，取消下一行并启用 sandbox profile
+      # - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - smartclaw-net
+
+  # ============================================
+  # Redis — governance 存储 / 限流 / Webhook 重放防护
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: smartclaw-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartclaw-net
+
+  # ============================================
+  # PostgreSQL — 可选：多副本数据面后端
+  #   启用: docker compose --profile postgres up -d
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: smartclaw-postgres
+    restart: unless-stopped
+    profiles:
+      - postgres
+      - full
+    environment:
+      - POSTGRES_USER=${DATABASE_USER:-smartclaw}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-smartclaw}
+      - POSTGRES_DB=${DATABASE_NAME:-smartclaw}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-smartclaw} -d ${DATABASE_NAME:-smartclaw}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartclaw-net
+
+  # ============================================
+  # Docker-in-Docker — 可选：Agent 沙箱隔离
+  #   启用: docker compose --profile sandbox up -d
+  #   不启用时可直接挂载宿主 docker.sock（见 smartclaw 服务注释）
+  # ============================================
+  dind:
+    image: docker:27-dind
+    container_name: smartclaw-dind
+    restart: unless-stopped
+    privileged: true
+    profiles:
+      - sandbox
+      - full
+    environment:
+      - DOCKER_TLS_CERTDIR=
+    volumes:
+      - dind_lib:/var/lib/docker
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+    networks:
+      - smartclaw-net
+
+# ==============================================
+# 持久化卷
+# ==============================================
+volumes:
+  smartclaw_config:
+  smartclaw_data:
+  smartclaw_logs:
+  sandboxes:
+  redis_data:
+  postgres_data:
+  dind_lib:
+
+# ==============================================
+# 网络
+# ==============================================
+networks:
+  smartclaw-net:
+    driver: bridge

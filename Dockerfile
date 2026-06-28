@@ -17,10 +17,13 @@ WORKDIR /app
 COPY . /app/
 
 # 安装本包及全部运行时依赖（依赖声明见 pyproject.toml）
-RUN uv pip install --system --no-cache-dir -e .
+# RUN uv pip install --system --no-cache-dir -e .
+RUN uv sync --system --no-dev --no-cache
 
-# 创建必要目录
-RUN mkdir -p /opt/smartclaw/{config,logs,data,sandboxes}
+# 运行安装
+RUN bash setup.sh
+RUN source ~/.bashrc
+RUN sudo chown -R $USER:$USER /opt/smartclaw
 
 # 暴露端口
 EXPOSE 8000
