@@ -326,7 +326,7 @@ Tenancy Registry 是租户管理的持久化后端（SQLite/Redis），支持完
 
 ```bash
 # 在 tenant_A 下创建 Agent
-smartclaw agent add bot_dept --tenant tenant_A --channel feishu -i cli_aaa -s <secret>
+smartclaw agent add dept_A --tenant tenant_A --channel feishu -i cli_aaa -s <secret>
 
 # 查看所有租户的 Agent
 smartclaw agent list
@@ -335,7 +335,7 @@ smartclaw agent list
 smartclaw agent list -v
 
 # 删除 tenant_A 下的 Agent
-smartclaw agent delete bot_dept --tenant tenant_A
+smartclaw agent delete dept_A --tenant tenant_A
 
 # 为租户 Agent 设置 LLM
 smartclaw agent set-llm bot_dept --tenant tenant_A -m glm-5 -k <key>
@@ -350,6 +350,46 @@ Agent 数据目录结构（多租户）：
 │   └── bot_dept/agent.json
 └── tenant_B/             # 租户 tenant_B
     └── bot_dept/agent.json
+```
+
+### Agent 租户迁移
+
+已有 Agent 可以通过 `agent update --tenant` 迁移到目标租户，CLI 会自动将配置目录移动到新租户下。
+
+```bash
+# 将已有 Agent 迁移到指定租户
+smartclaw agent update dept_A --tenant tenant_A
+smartclaw agent update dept_B --tenant tenant_B
+```
+
+迁移前后目录变化：
+
+```
+# 迁移前（agent.json 中 tenant_id 为 "default"）
+data/agents/
+├── default/agent.json
+├── dept_A/agent.json            # tenant_id: default
+└── dept_B/agent.json            # tenant_id: default
+
+# 迁移后（agent.json 中 tenant_id 已更新为对应租户）
+data/agents/
+├── default/agent.json
+├── tenant_A/
+│   └── dept_A/agent.json        # tenant_id: tenant_A
+└── tenant_B/
+    └── dept_B/agent.json        # tenant_id: tenant_B
+```
+
+> **注意**：迁移仅移动 `agent.json` 配置目录。Agent 的工作区（`workspace/`）、会话（`sessions/`）、记忆（`memory/`）仍保留在原路径，如需完全隔离需手动迁移或在新租户下重新积累数据。
+
+验证迁移结果：
+
+```bash
+# 查看所有 Agent 的租户归属
+smartclaw agent list -v
+
+# 查看配置中的租户映射
+smartclaw config show | grep -A 10 tenant_by_app_id
 ```
 
 ### 租户级角色管理
@@ -389,7 +429,7 @@ smartclaw session-list --tenant tenant_A
 ### 验证
 
 ```bash
-# 查看所有 Agent（含租户信息）
+# 查看所有 Agent
 smartclaw agent list
 
 # 查看详细信息（含租户路径）

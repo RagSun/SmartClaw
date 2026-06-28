@@ -811,9 +811,15 @@ class AgentManager:
         return True, f"Agent '{tenant_agent_key(request.name, tenant_id)}' 创建成功", agent_info
 
     def update_agent(self, name: str, request: UpdateAgentRequest) -> tuple[bool, str]:
-        """更新 Agent 配置"""
+        """更新 Agent 配置（支持跨租户迁移）"""
         tenant, agent_name = self._split_agent_ref(name, request.tenant_id)
         config = self._read_config(agent_name, tenant_id=tenant)
+        if not config and tenant != DEFAULT_TENANT_ID:
+            # 跨租户迁移：新租户路径未找到，尝试在默认租户或当前任意路径查找
+            config = self._read_config(agent_name, tenant_id=DEFAULT_TENANT_ID)
+            if not config:
+                # 最后尝试：不限定租户，在所有 agents 目录中搜索
+                config = self._read_config(agent_name, tenant_id=None)
         if not config:
             return False, f"Agent '{tenant_agent_key(agent_name, tenant)}' 不存在"
 

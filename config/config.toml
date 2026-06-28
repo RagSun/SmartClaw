@@ -2,7 +2,7 @@
 name = "SmartClaw"
 version = "1.0.0"
 environment = "development"
-agent_workspace_base = "/home/luckyu/.smartclaw/workspace"
+agent_workspace_base = ""
 
 [server]
 host = "0.0.0.0"

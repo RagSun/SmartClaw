@@ -15,7 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
 ]
-# 设计：`uv pip install -e .` 即得到「可真正 smartclaw start」的完整后端闭包——
+# 设计：`uv sync` 即得到「可真正 smartclaw start」的完整后端闭包——
 # 含 Web/CLI 框架 + Agent 执行内核（deepagents/LangChain/LangGraph）+ 飞书渠道 + 运行时基础设施。
 # 唯一可选的是 PostgreSQL 多副本数据面后端（[postgres] extra），sqlite 默认零额外依赖。
 dependencies = [

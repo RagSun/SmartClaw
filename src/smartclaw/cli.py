@@ -1502,6 +1502,19 @@ def config_show(
             "level": cfg.logging.level,
             "file": cfg.logging.file_path,
         },
+        "auth": {
+            "tenant_default": cfg.auth.tenant_default,
+            "tenant_by_app_id": cfg.auth.tenant_by_app_id,
+            "tenant_trust_header": cfg.auth.tenant_trust_header,
+            "monitoring_require_auth": cfg.auth.monitoring_require_auth,
+            "monitoring_bearer_token": _mask_secret_for_display(cfg.auth.monitoring_bearer_token) if cfg.auth.monitoring_bearer_token else "",
+            "admin_require_auth": cfg.auth.admin_require_auth,
+            "admin_bearer_token": _mask_secret_for_display(cfg.auth.admin_bearer_token) if cfg.auth.admin_bearer_token else "",
+            "feishu_webhook_secret": _mask_secret_for_display(cfg.auth.feishu_webhook_secret) if cfg.auth.feishu_webhook_secret else "",
+            "feishu_decrypt_webhook": cfg.auth.feishu_decrypt_webhook,
+            "audit_jsonl_enabled": cfg.auth.audit_jsonl_enabled,
+            "webhook_replay_ttl_seconds": cfg.auth.webhook_replay_ttl_seconds,
+        },
     }
 
     # 聚合 Agent 信息（与 agent list 同源：data/agents/*/agent.json）
